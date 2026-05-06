@@ -1,0 +1,16 @@
+# Database and logs — these are local to each machine
+data/lado.db
+data/logs/
+data/archive/
+data/quarantine/
+
+# Python cache files
+__pycache__/
+*.pyc
+*.pyo
+
+# VS Code settings
+.vscode/
+
+# API keys safety net
+config.py
