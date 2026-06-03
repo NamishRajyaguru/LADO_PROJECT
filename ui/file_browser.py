@@ -40,7 +40,6 @@ class FileBrowserPanel(ctk.CTkFrame):
         self._build()
 
     def _build(self):
-        # Header
         hdr=ctk.CTkFrame(self,fg_color="transparent")
         hdr.pack(fill="x",padx=32,pady=(28,0))
         ctk.CTkLabel(hdr,text="Files",
@@ -52,7 +51,6 @@ class FileBrowserPanel(ctk.CTkFrame):
 
         ctk.CTkFrame(self,fg_color=BORDER,height=1).pack(fill="x",padx=32,pady=20)
 
-        # Filter bar
         fb=ctk.CTkFrame(self,fg_color=BG_RAISED,corner_radius=8,
                         border_color=BORDER,border_width=1)
         fb.pack(fill="x",padx=32,pady=(0,16))
@@ -80,7 +78,6 @@ class FileBrowserPanel(ctk.CTkFrame):
             fg_color=BLUE,text_color="#050508",hover_color="#6bb3e8",
             corner_radius=6,command=self._apply).pack(side="left")
 
-        # Column headers
         ch=ctk.CTkFrame(self,fg_color=BG_SURFACE,corner_radius=0,height=30)
         ch.pack(fill="x",padx=32); ch.pack_propagate(False)
         for i,(col,w) in enumerate(zip(COLS,WIDTHS)):
@@ -89,27 +86,38 @@ class FileBrowserPanel(ctk.CTkFrame):
                 text_color=TEXT_SEC,width=w,anchor="w").pack(
                 side="left",padx=(16 if i==0 else 6,0))
 
-        # Rows
         self._scroll=ctk.CTkScrollableFrame(self,fg_color="transparent",corner_radius=0)
         self._scroll.pack(fill="both",expand=True,padx=32,pady=(0,24))
         self._load()
 
     def _load(self,ext=None,min_mb=None,search=None):
         for w in self._scroll.winfo_children(): w.destroy()
+        loading=ctk.CTkLabel(self._scroll,text="Loading files…",
+            font=ctk.CTkFont(family="Segoe UI",size=11),text_color=TEXT_SEC)
+        loading.pack(pady=24)
+        self._scroll.update()
         rows=load(ext,min_mb,search)
+        loading.destroy()
         self._cnt.configure(text=f"{len(rows)} files")
-        for i,r in enumerate(rows):
+        self._render_batch(rows,0)
+
+    def _render_batch(self,rows,start):
+        end=min(start+50,len(rows))
+        for i in range(start,end):
+            r=rows[i]
             bg=BG_RAISED if i%2==0 else BG_SURFACE
             row=ctk.CTkFrame(self._scroll,fg_color=bg,corner_radius=0,height=26)
             row.pack(fill="x"); row.pack_propagate(False)
-            vals=[str(r[0])[:35], f".{r[1]}" if r[1] else "",
-                  f"{float(r[2] or 0):.1f}", str(r[3] or "")[:16], str(r[4])]
-            colors=[TEXT_PRI,BLUE,AMBER,TEXT_SEC,TEXT_MUT+"aa"]
+            vals=[str(r[0])[:35],f".{r[1]}" if r[1] else "",
+                  f"{float(r[2] or 0):.1f}",str(r[3] or "")[:16],str(r[4])]
+            colors=[TEXT_PRI,BLUE,AMBER,TEXT_SEC,TEXT_MUT]
             for j,(v,c,w) in enumerate(zip(vals,colors,WIDTHS)):
                 ctk.CTkLabel(row,text=v,
                     font=ctk.CTkFont(family="Segoe UI",size=10),
                     text_color=c,width=w,anchor="w").pack(
                     side="left",padx=(16 if j==0 else 6,0))
+        if end<len(rows):
+            self._scroll.after(10,lambda:self._render_batch(rows,end))
 
     def _apply(self):
         e=self._ev.get() if self._ev.get()!="All" else None
