@@ -1,60 +1,62 @@
-import customtkinter as ctk, sqlite3, sys, os
+import customtkinter as ctk, sqlite3, sys, os, threading
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from config import DB_PATH
 
-BG_BASE="#050508"; BG_SURFACE="#0c0c12"; BG_RAISED="#121219"; BG_HOVER="#1a1a24"
-BORDER="#1e1e2e"; TEXT_PRI="#f0f0f8"; TEXT_SEC="#6b6b8a"; TEXT_MUT="#2e2e48"
-BLUE="#4d9de0"; GREEN="#3ddc84"; AMBER="#f5a623"; RED="#e05c5c"; PURPLE="#9b72cf"
+BG="#07080f";SURFACE="#0e0f1a";CARD="#13141f";CARD2="#181926"
+BORDER="#1f2035";BORDER_HI="#2a2d4a"
+TEXT="#eeeef5";MUTED="#5a5b7a";DIM="#272840"
+ACCENT="#5b8dee";ACCENTG="#3ecf8e";ACCENTR="#e05c72";ACCENTY="#f0a84a";ACCENTP="#a78bfa"
 
 def fetch():
     try:
-        c = sqlite3.connect(DB_PATH).cursor()
-        c.execute("SELECT COUNT(*) FROM files"); tf = c.fetchone()[0]
-        c.execute("SELECT SUM(size_mb) FROM files"); sz = round((c.fetchone()[0] or 0)/1024,2)
+        c=sqlite3.connect(DB_PATH).cursor()
+        c.execute("SELECT COUNT(*) FROM files"); tf=c.fetchone()[0]
+        c.execute("SELECT SUM(size_mb) FROM files"); sz=round((c.fetchone()[0] or 0)/1024,2)
         c.execute("SELECT COUNT(DISTINCT hash) FROM files WHERE hash!='' AND hash IS NOT NULL"); uh=c.fetchone()[0]
         c.execute("SELECT COUNT(*) FROM files WHERE hash!='' AND hash IS NOT NULL"); hf=c.fetchone()[0]
         c.execute("SELECT COUNT(*) FROM suggestions WHERE status='pending'"); pend=c.fetchone()[0]
-        c.execute("SELECT MAX(modified_time) FROM files"); ls=c.fetchone()[0] or "—"
-        return {"files":tf,"size":sz,"dupes":hf-uh,"pending":pend,"scan":str(ls)[:16]}
+        c.execute("SELECT MAX(modified_time) FROM files"); ls=str(c.fetchone()[0] or "—")[:16]
+        return {"files":tf,"size":sz,"dupes":hf-uh,"pending":pend,"scan":ls}
     except Exception as e:
-        return {"files":0,"size":0.0,"dupes":0,"pending":0,"scan":f"DB error"}
+        return {"files":0,"size":0.0,"dupes":0,"pending":0,"scan":"No DB"}
 
 
 class Card(ctk.CTkFrame):
     def __init__(self, parent, label, value, accent, sub="", **kw):
-        super().__init__(parent, fg_color=BG_RAISED, corner_radius=10,
+        super().__init__(parent, fg_color=CARD, corner_radius=14,
                          border_color=BORDER, border_width=1, **kw)
-        self._val = value; self._accent = accent
+        self._val_lbl = None
 
-        top = ctk.CTkFrame(self, fg_color="transparent")
-        top.pack(fill="x", padx=18, pady=(18,0))
+        # top accent line
+        ctk.CTkFrame(self, fg_color=accent, height=2,
+                     corner_radius=0).pack(fill="x", side="top")
 
-        # accent dot
-        ctk.CTkFrame(top, fg_color=accent, width=6, height=6,
-                     corner_radius=3).pack(side="left", pady=2)
+        body = ctk.CTkFrame(self, fg_color="transparent")
+        body.pack(fill="both", expand=True, padx=22, pady=20)
 
-        ctk.CTkLabel(top, text=label,
+        # label row with dot
+        lrow = ctk.CTkFrame(body, fg_color="transparent")
+        lrow.pack(anchor="w")
+        ctk.CTkFrame(lrow, fg_color=accent, width=5, height=5,
+                     corner_radius=3).pack(side="left", pady=1)
+        ctk.CTkLabel(lrow, text=f"  {label}",
             font=ctk.CTkFont(family="Segoe UI", size=9),
-            text_color=TEXT_SEC).pack(side="left", padx=(8,0))
+            text_color=MUTED).pack(side="left")
 
-        self._val_lbl = ctk.CTkLabel(self, text=str(value),
-            font=ctk.CTkFont(family="Segoe UI", size=26, weight="bold"),
-            text_color=TEXT_PRI)
-        self._val_lbl.pack(anchor="w", padx=18, pady=(10,0))
+        # value
+        self._val_lbl = ctk.CTkLabel(body, text=str(value),
+            font=ctk.CTkFont(family="Segoe UI", size=30, weight="bold"),
+            text_color=TEXT)
+        self._val_lbl.pack(anchor="w", pady=(10, 0))
 
         if sub:
-            ctk.CTkLabel(self, text=sub,
+            ctk.CTkLabel(body, text=sub,
                 font=ctk.CTkFont(family="Segoe UI", size=9),
-                text_color=TEXT_SEC).pack(anchor="w", padx=18, pady=(2,16))
-        else:
-            ctk.CTkFrame(self, fg_color="transparent", height=16).pack()
-
-        # bottom accent bar
-        ctk.CTkFrame(self, fg_color=accent, height=2, corner_radius=0).pack(
-            fill="x", side="bottom")
+                text_color=DIM).pack(anchor="w", pady=(2, 0))
 
     def update(self, v):
-        self._val_lbl.configure(text=str(v))
+        if self._val_lbl:
+            self._val_lbl.configure(text=str(v))
 
 
 class DashboardPanel(ctk.CTkFrame):
@@ -64,58 +66,100 @@ class DashboardPanel(ctk.CTkFrame):
         self._build()
 
     def _build(self):
-        # Page header
+        # ── Page header ───────────────────────────────────────
         hdr = ctk.CTkFrame(self, fg_color="transparent")
-        hdr.pack(fill="x", padx=32, pady=(28,0))
-        ctk.CTkLabel(hdr, text="Overview",
-            font=ctk.CTkFont(family="Segoe UI", size=20, weight="bold"),
-            text_color=TEXT_PRI).pack(side="left")
+        hdr.pack(fill="x", padx=36, pady=(32, 0))
 
-        ctk.CTkButton(hdr, text="Refresh", width=80, height=28,
+        left = ctk.CTkFrame(hdr, fg_color="transparent")
+        left.pack(side="left")
+        ctk.CTkLabel(left, text="Overview",
+            font=ctk.CTkFont(family="Segoe UI", size=22, weight="bold"),
+            text_color=TEXT).pack(anchor="w")
+        ctk.CTkLabel(left, text="Live snapshot of your file system",
+            font=ctk.CTkFont(family="Segoe UI", size=11),
+            text_color=MUTED).pack(anchor="w", pady=(2, 0))
+
+        ctk.CTkButton(hdr, text="↻  Refresh", width=90, height=30,
             font=ctk.CTkFont(family="Segoe UI", size=10),
-            fg_color="transparent", border_color=BORDER, border_width=1,
-            text_color=TEXT_SEC, hover_color=BG_HOVER,
+            fg_color="transparent", border_color=BORDER_HI, border_width=1,
+            text_color=MUTED, hover_color=CARD2, corner_radius=8,
             command=self._refresh).pack(side="right")
 
-        ctk.CTkLabel(hdr, text="File system snapshot",
-            font=ctk.CTkFont(family="Segoe UI", size=11),
-            text_color=TEXT_SEC).pack(side="left", padx=(10,0))
+        # divider
+        ctk.CTkFrame(self, fg_color=BORDER, height=1).pack(
+            fill="x", padx=36, pady=24)
 
-        # Thin divider
-        ctk.CTkFrame(self, fg_color=BORDER, height=1).pack(fill="x", padx=32, pady=20)
-
-        # Card grid — 3 cols
+        # ── Cards ─────────────────────────────────────────────
         grid = ctk.CTkFrame(self, fg_color="transparent")
-        grid.pack(fill="x", padx=32)
-        grid.columnconfigure((0,1,2), weight=1, uniform="c")
+        grid.pack(fill="x", padx=36)
+        grid.columnconfigure((0,1,2,3), weight=1, uniform="c")
 
         s = fetch()
         defs = [
-            ("TOTAL FILES",    s["files"],   BLUE,   "indexed",          0,0),
-            ("STORAGE USED",   f"{s['size']} GB", GREEN, "scanned",      0,1),
-            ("DUPLICATES",     s["dupes"],   RED,    "files",            0,2),
-            ("PENDING",        s["pending"], AMBER,  "suggestions",      1,0),
-            ("LAST SCAN",      s["scan"],    PURPLE, "",                 1,1),
+            ("TOTAL FILES",   s["files"],           ACCENT,  "indexed",       0),
+            ("STORAGE USED",  f"{s['size']} GB",    ACCENTG, "scanned",       1),
+            ("DUPLICATES",    s["dupes"],            ACCENTR, "wasted copies", 2),
+            ("PENDING",       s["pending"],          ACCENTY, "suggestions",   3),
         ]
-        for label, val, accent, sub, row, col in defs:
+        for label, val, accent, sub, col in defs:
             c = Card(grid, label, val, accent, sub)
-            c.grid(row=row, column=col, padx=8, pady=8, sticky="nsew")
+            c.grid(row=0, column=col, padx=8, pady=0, sticky="nsew")
             self._cards[label] = c
 
-        # Status strip
-        strip = ctk.CTkFrame(self, fg_color=BG_RAISED, corner_radius=8,
-                             border_color=BORDER, border_width=1)
-        strip.pack(fill="x", padx=32, pady=(16,0))
+        # ── Wide last-scan card ────────────────────────────────
+        scan_card = ctk.CTkFrame(self, fg_color=CARD, corner_radius=14,
+                                 border_color=BORDER, border_width=1)
+        scan_card.pack(fill="x", padx=36, pady=(16, 0))
+        ctk.CTkFrame(scan_card, fg_color=ACCENTP, height=2,
+                     corner_radius=0).pack(fill="x", side="top")
 
-        dot = ctk.CTkFrame(strip, fg_color=GREEN, width=6, height=6, corner_radius=3)
-        dot.pack(side="left", padx=(16,8), pady=14)
-        ctk.CTkLabel(strip, text="LADO backend active  ·  SQLite memory layer online",
+        sc_inner = ctk.CTkFrame(scan_card, fg_color="transparent")
+        sc_inner.pack(fill="x", padx=22, pady=18)
+
+        left2 = ctk.CTkFrame(sc_inner, fg_color="transparent")
+        left2.pack(side="left")
+        ctk.CTkLabel(left2, text="LAST SCAN",
+            font=ctk.CTkFont(family="Segoe UI", size=9),
+            text_color=MUTED).pack(anchor="w")
+        self._scan_lbl = ctk.CTkLabel(left2, text=s["scan"],
+            font=ctk.CTkFont(family="Segoe UI", size=16, weight="bold"),
+            text_color=TEXT)
+        self._scan_lbl.pack(anchor="w", pady=(4, 0))
+
+        # status dot
+        right2 = ctk.CTkFrame(sc_inner, fg_color="transparent")
+        right2.pack(side="right")
+        dot_row = ctk.CTkFrame(right2, fg_color="transparent")
+        dot_row.pack(anchor="e")
+        ctk.CTkFrame(dot_row, fg_color=ACCENTG, width=7, height=7,
+                     corner_radius=4).pack(side="left", pady=2)
+        ctk.CTkLabel(dot_row, text="  Backend active  ·  SQLite online",
             font=ctk.CTkFont(family="Segoe UI", size=10),
-            text_color=TEXT_SEC).pack(side="left")
+            text_color=MUTED).pack(side="left")
+
+        # ── Tip strip ─────────────────────────────────────────
+        tip = ctk.CTkFrame(self, fg_color=CARD2, corner_radius=10,
+                           border_color=BORDER, border_width=1)
+        tip.pack(fill="x", padx=36, pady=16)
+        ctk.CTkLabel(tip,
+            text="  Tip — run  python main.py  in terminal to rescan your files, then click Refresh.",
+            font=ctk.CTkFont(family="Segoe UI", size=10),
+            text_color=DIM, anchor="w").pack(fill="x", padx=16, pady=12)
 
     def _refresh(self):
-        s = fetch()
-        m = {"TOTAL FILES":s["files"],"STORAGE USED":f"{s['size']} GB",
-             "DUPLICATES":s["dupes"],"PENDING":s["pending"],"LAST SCAN":s["scan"]}
-        for k,v in m.items():
-            if k in self._cards: self._cards[k].update(v)
+        def _bg():
+            s = fetch()
+            self.after(0, lambda: self._apply(s))
+        threading.Thread(target=_bg, daemon=True).start()
+
+    def _apply(self, s):
+        m = {
+            "TOTAL FILES": s["files"],
+            "STORAGE USED": f"{s['size']} GB",
+            "DUPLICATES": s["dupes"],
+            "PENDING": s["pending"],
+        }
+        for k, v in m.items():
+            if k in self._cards:
+                self._cards[k].update(v)
+        self._scan_lbl.configure(text=s["scan"])

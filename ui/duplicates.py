@@ -1,10 +1,12 @@
-import customtkinter as ctk, sqlite3, sys, os
+import customtkinter as ctk, sqlite3, sys, os, threading
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from config import DB_PATH
 
-BG_BASE="#050508";BG_SURFACE="#0c0c12";BG_RAISED="#121219";BG_HOVER="#1a1a24"
-BORDER="#1e1e2e";TEXT_PRI="#f0f0f8";TEXT_SEC="#6b6b8a";TEXT_MUT="#2e2e48"
-BLUE="#4d9de0";GREEN="#3ddc84";AMBER="#f5a623";RED="#e05c5c"
+BG="#07080f";SURFACE="#0e0f1a";CARD="#13141f";CARD2="#181926"
+BORDER="#1f2035";BORDER_HI="#2a2d4a"
+TEXT="#eeeef5";MUTED="#5a5b7a";DIM="#272840"
+ACCENT="#5b8dee";ACCENTG="#3ecf8e";ACCENTR="#e05c72";ACCENTY="#f0a84a"
+SK1="#13141f";SK2="#1c1d2e"
 
 def clusters():
     try:
@@ -23,101 +25,153 @@ def files_in(h):
     except: return []
 
 
+class SkeletonCluster(ctk.CTkFrame):
+    def __init__(self, parent, **kw):
+        super().__init__(parent, fg_color=CARD, corner_radius=12,
+                         border_color=BORDER, border_width=1, **kw)
+        self._phase=0; self._bars=[]
+        row=ctk.CTkFrame(self, fg_color="transparent")
+        row.pack(fill="x", padx=20, pady=18)
+        for w,side in [(130,"left"),(80,"left"),(100,"left"),(150,"right")]:
+            b=ctk.CTkFrame(row, fg_color=SK2, corner_radius=3, width=w, height=10)
+            b.pack(side=side, padx=(0 if side=="right" else 14,0))
+            b.pack_propagate(False)
+            self._bars.append(b)
+        self._tick()
+
+    def _tick(self):
+        if not self.winfo_exists(): return
+        self._phase=(self._phase+1)%24
+        c=SK2 if self._phase<12 else SK1
+        for b in self._bars:
+            if b.winfo_exists(): b.configure(fg_color=c)
+        self.after(90,self._tick)
+
+
 class Cluster(ctk.CTkFrame):
-    def __init__(self,parent,data,idx,**kw):
-        super().__init__(parent,fg_color=BG_RAISED,corner_radius=8,
-                         border_color=BORDER,border_width=1,**kw)
+    def __init__(self, parent, data, idx, **kw):
+        super().__init__(parent, fg_color=CARD, corner_radius=12,
+                         border_color=BORDER, border_width=1, **kw)
         self._hash,self._cnt,sz=data
         self._sz=float(sz or 0)
         self._expanded=False; self._detail=None
         wasted=self._sz*(self._cnt-1)/self._cnt if self._cnt>1 else 0
 
-        hdr=ctk.CTkFrame(self,fg_color="transparent",cursor="hand2")
-        hdr.pack(fill="x",padx=16,pady=12)
-        hdr.bind("<Button-1>",self._toggle)
+        # top accent
+        ctk.CTkFrame(self, fg_color=ACCENTR, height=2, corner_radius=0).pack(fill="x", side="top")
 
-        self._arrow=ctk.CTkLabel(hdr,text="›",
-            font=ctk.CTkFont(family="Segoe UI",size=14),
-            text_color=TEXT_SEC,width=14)
+        hdr=ctk.CTkFrame(self, fg_color="transparent", cursor="hand2")
+        hdr.pack(fill="x", padx=20, pady=14)
+        hdr.bind("<Button-1>", self._toggle)
+
+        self._arrow=ctk.CTkLabel(hdr, text="›",
+            font=ctk.CTkFont(family="Segoe UI", size=16), text_color=MUTED, width=16)
         self._arrow.pack(side="left")
-        self._arrow.bind("<Button-1>",self._toggle)
+        self._arrow.bind("<Button-1>", self._toggle)
 
-        ctk.CTkLabel(hdr,text=f"  Cluster {idx+1}",
-            font=ctk.CTkFont(family="Segoe UI",size=11,weight="bold"),
-            text_color=TEXT_PRI).pack(side="left")
+        ctk.CTkLabel(hdr, text=f"  Cluster {idx+1}",
+            font=ctk.CTkFont(family="Segoe UI", size=11, weight="bold"),
+            text_color=TEXT).pack(side="left")
+        ctk.CTkLabel(hdr, text=f"  ·  {self._cnt} copies",
+            font=ctk.CTkFont(family="Segoe UI", size=10),
+            text_color=MUTED).pack(side="left")
+        ctk.CTkLabel(hdr, text=f"  ·  {self._sz:.1f} MB total",
+            font=ctk.CTkFont(family="Segoe UI", size=10),
+            text_color=ACCENTY).pack(side="left")
 
-        ctk.CTkLabel(hdr,text=f"  ·  {self._cnt} copies",
-            font=ctk.CTkFont(family="Segoe UI",size=10),
-            text_color=TEXT_SEC).pack(side="left")
+        # recoverable badge
+        badge=ctk.CTkFrame(hdr, fg_color=CARD2, corner_radius=6)
+        badge.pack(side="right")
+        ctk.CTkLabel(badge, text=f"  ↓ {wasted:.1f} MB free  ",
+            font=ctk.CTkFont(family="Segoe UI", size=9, weight="bold"),
+            text_color=ACCENTG).pack(padx=2, pady=4)
 
-        ctk.CTkLabel(hdr,text=f"  ·  {self._sz:.1f} MB total",
-            font=ctk.CTkFont(family="Segoe UI",size=10),
-            text_color=AMBER).pack(side="left")
+        ctk.CTkLabel(hdr, text=f"{self._hash[:10]}…",
+            font=ctk.CTkFont(family="Segoe UI", size=8),
+            text_color=DIM).pack(side="right", padx=(0,10))
 
-        ctk.CTkLabel(hdr,text=f"↓ {wasted:.1f} MB recoverable",
-            font=ctk.CTkFont(family="Segoe UI",size=9,weight="bold"),
-            text_color=GREEN).pack(side="right")
-
-        ctk.CTkLabel(hdr,text=f"{self._hash[:12]}…",
-            font=ctk.CTkFont(family="Segoe UI",size=9),
-            text_color=TEXT_MUT).pack(side="right",padx=(0,12))
-
-    def _toggle(self,e=None):
+    def _toggle(self, e=None):
         self._expanded=not self._expanded
         self._arrow.configure(text="∨" if self._expanded else "›")
         if self._expanded:
-            self._detail=ctk.CTkFrame(self,fg_color=BG_SURFACE,corner_radius=6)
-            self._detail.pack(fill="x",padx=16,pady=(0,12))
+            self._detail=ctk.CTkFrame(self, fg_color=SURFACE, corner_radius=8)
+            self._detail.pack(fill="x", padx=14, pady=(0,14))
             for i,(path,name,mb,mod) in enumerate(files_in(self._hash)):
-                row=ctk.CTkFrame(self._detail,fg_color="transparent")
-                row.pack(fill="x",padx=12,pady=3)
-                dot_c=TEXT_SEC if i>0 else GREEN
-                ctk.CTkLabel(row,text="·",font=ctk.CTkFont(size=14),
-                    text_color=dot_c,width=12).pack(side="left")
-                ctk.CTkLabel(row,text=f"  {name}",
-                    font=ctk.CTkFont(family="Segoe UI",size=10,weight="bold"),
-                    text_color=TEXT_PRI).pack(side="left")
-                ctk.CTkLabel(row,text=f"  {float(mb or 0):.1f} MB",
-                    font=ctk.CTkFont(family="Segoe UI",size=9),
-                    text_color=AMBER).pack(side="left")
-                ctk.CTkLabel(row,text=f"  {path}",
-                    font=ctk.CTkFont(family="Segoe UI",size=9),
-                    text_color=TEXT_MUT).pack(side="left")
+                row=ctk.CTkFrame(self._detail, fg_color="transparent")
+                row.pack(fill="x", padx=14, pady=4)
+                dot_c=ACCENTG if i==0 else MUTED
+                ctk.CTkLabel(row, text="●",
+                    font=ctk.CTkFont(size=7), text_color=dot_c, width=12).pack(side="left")
+                ctk.CTkLabel(row, text=f"  {name}",
+                    font=ctk.CTkFont(family="Segoe UI", size=10, weight="bold"),
+                    text_color=TEXT).pack(side="left")
+                ctk.CTkLabel(row, text=f"  {float(mb or 0):.1f} MB",
+                    font=ctk.CTkFont(family="Segoe UI", size=9),
+                    text_color=ACCENTY).pack(side="left")
+                ctk.CTkLabel(row, text=f"  {path}",
+                    font=ctk.CTkFont(family="Segoe UI", size=9),
+                    text_color=DIM).pack(side="left")
         else:
             if self._detail: self._detail.destroy(); self._detail=None
 
 
 class DuplicatesPanel(ctk.CTkFrame):
-    def __init__(self,parent,**kw):
-        super().__init__(parent,fg_color="transparent",**kw)
+    def __init__(self, parent, **kw):
+        super().__init__(parent, fg_color="transparent", **kw)
         self._build()
 
     def _build(self):
-        hdr=ctk.CTkFrame(self,fg_color="transparent")
-        hdr.pack(fill="x",padx=32,pady=(28,0))
-        ctk.CTkLabel(hdr,text="Duplicates",
-            font=ctk.CTkFont(family="Segoe UI",size=20,weight="bold"),
-            text_color=TEXT_PRI).pack(side="left")
+        hdr=ctk.CTkFrame(self, fg_color="transparent")
+        hdr.pack(fill="x", padx=36, pady=(32,0))
+        left=ctk.CTkFrame(hdr, fg_color="transparent")
+        left.pack(side="left")
+        ctk.CTkLabel(left, text="Duplicates",
+            font=ctk.CTkFont(family="Segoe UI", size=22, weight="bold"),
+            text_color=TEXT).pack(anchor="w")
+        ctk.CTkLabel(left, text="Groups of identical files — expand to see paths",
+            font=ctk.CTkFont(family="Segoe UI", size=11),
+            text_color=MUTED).pack(anchor="w", pady=(2,0))
+        self._stats=ctk.CTkLabel(hdr, text="",
+            font=ctk.CTkFont(family="Segoe UI", size=11, weight="bold"),
+            text_color=ACCENTG)
+        self._stats.pack(side="right")
 
+        ctk.CTkFrame(self, fg_color=BORDER, height=1).pack(fill="x", padx=36, pady=24)
+
+        self._cnt=ctk.CTkLabel(self, text="",
+            font=ctk.CTkFont(family="Segoe UI", size=10), text_color=MUTED)
+        self._cnt.pack(anchor="w", padx=36, pady=(0,12))
+
+        self._scroll=ctk.CTkScrollableFrame(self, fg_color="transparent")
+        self._scroll.pack(fill="both", expand=True, padx=36, pady=(0,28))
+
+        # skeletons immediately
+        for _ in range(6):
+            SkeletonCluster(self._scroll).pack(fill="x", pady=6)
+
+        threading.Thread(target=self._bg, daemon=True).start()
+
+    def _bg(self):
         cl=clusters()
+        self.after(0, lambda:self._render(cl))
+
+    def _render(self, cl):
+        if not self.winfo_exists(): return
         wasted=sum(float(sz or 0)*(cnt-1)/cnt for _,cnt,sz in cl if cnt>1)
-        ctk.CTkLabel(hdr,text=f"↓ {wasted:.1f} MB total recoverable",
-            font=ctk.CTkFont(family="Segoe UI",size=10,weight="bold"),
-            text_color=GREEN).pack(side="right")
-
-        ctk.CTkFrame(self,fg_color=BORDER,height=1).pack(fill="x",padx=32,pady=20)
-
-        ctk.CTkLabel(self,text=f"{len(cl)} duplicate cluster{'s' if len(cl)!=1 else ''} found",
-            font=ctk.CTkFont(family="Segoe UI",size=10),
-            text_color=TEXT_SEC).pack(anchor="w",padx=32,pady=(0,12))
-
-        scroll=ctk.CTkScrollableFrame(self,fg_color="transparent")
-        scroll.pack(fill="both",expand=True,padx=32,pady=(0,24))
-
+        for w in self._scroll.winfo_children(): w.destroy()
+        self._stats.configure(text=f"↓ {wasted:.1f} MB recoverable")
+        self._cnt.configure(text=f"{len(cl)} cluster{'s' if len(cl)!=1 else ''} found")
         if not cl:
-            ctk.CTkLabel(scroll,text="No duplicates found.",
-                font=ctk.CTkFont(family="Segoe UI",size=12),
-                text_color=TEXT_MUT).pack(pady=48)
+            ctk.CTkLabel(self._scroll, text="No duplicates found.",
+                font=ctk.CTkFont(family="Segoe UI", size=13),
+                text_color=DIM).pack(pady=56)
             return
-        for i,c in enumerate(cl):
-            Cluster(scroll,c,i).pack(fill="x",pady=4)
+        self._batch(cl, 0)
+
+    def _batch(self, cl, start):
+        if not self.winfo_exists(): return
+        end=min(start+20, len(cl))
+        for i in range(start, end):
+            Cluster(self._scroll, cl[i], i).pack(fill="x", pady=6)
+        if end<len(cl):
+            self._scroll.after(10, lambda:self._batch(cl, end))
