@@ -1,4 +1,4 @@
-import customtkinter as ctk, threading, sys, os, sqlite3
+import customtkinter as ctk, threading, sqlite3, sys, os
 from datetime import datetime
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -7,9 +7,10 @@ except: LLM=False
 try: from config import LOG_DIR, DB_PATH
 except: LOG_DIR=None; DB_PATH=None
 
-BG_BASE="#050508";BG_SURFACE="#0c0c12";BG_RAISED="#121219";BG_HOVER="#1a1a24"
-BORDER="#1e1e2e";TEXT_PRI="#f0f0f8";TEXT_SEC="#6b6b8a";TEXT_MUT="#2e2e48"
-BLUE="#4d9de0";GREEN="#3ddc84"
+BG="#07080f";SURFACE="#0e0f1a";CARD="#13141f";CARD2="#181926"
+BORDER="#1f2035";BORDER_HI="#2a2d4a"
+TEXT="#eeeef5";MUTED="#5a5b7a";DIM="#272840"
+ACCENT="#5b8dee";ACCENTG="#3ecf8e"
 
 def get_logs():
     if not LOG_DIR: return "No log directory configured."
@@ -30,131 +31,137 @@ def get_db_summary():
         ext_breakdown=", ".join([f"{r[0]}({r[1]})" for r in c.fetchall()])
         c.execute("SELECT name,size_mb,path FROM files ORDER BY size_mb DESC LIMIT 5")
         big="\n".join([f"  - {r[0]} ({float(r[1] or 0):.1f} MB) at {r[2]}" for r in c.fetchall()])
-        return f"""Total files: {total} | Storage: {size} GB | Duplicates: {hf-uh} | Pending suggestions: {pending}
-Top file types: {ext_breakdown}
-Largest files:
-{big}"""
-    except Exception as e:
-        return f"DB unavailable: {e}"
+        return f"Total: {total} files | {size} GB | {hf-uh} duplicates | {pending} pending\nTypes: {ext_breakdown}\nLargest:\n{big}"
+    except Exception as e: return f"DB unavailable: {e}"
 
 def query(msg):
     if not LLM: return "LLM not connected — add your Groq API key to config.py."
     try:
         prompt=f"""You are LADO, a smart personal AI assistant built into a file management app.
-You are friendly, helpful, and conversational — you can talk about anything from casual greetings to deep questions.
-You also have full knowledge of the user's file system from the database below.
+You are friendly, helpful, and conversational — talk about anything from greetings to deep questions.
+You have full knowledge of the user's file system below.
 
-FILE SYSTEM SNAPSHOT:
+FILE SYSTEM:
 {get_db_summary()}
 
-RECENT ACTIVITY LOG:
+RECENT LOG:
 {get_logs()}
 
-Respond naturally to the user. For casual messages like greetings, just be friendly and natural.
-For file-related questions, use the snapshot above to give specific accurate answers.
-Never say you "cannot access" files — you have the data above.
+Respond naturally. For casual messages be friendly. For file questions use the data above.
+Never say you cannot access files — you have the data.
 
-User message: {msg}"""
+User: {msg}"""
         return ask_llm(prompt)
     except Exception as e: return f"Error: {e}"
 
 
 class Bubble(ctk.CTkFrame):
-    def __init__(self,parent,text,role,**kw):
-        super().__init__(parent,fg_color="transparent",**kw)
+    def __init__(self, parent, text, role, **kw):
+        super().__init__(parent, fg_color="transparent", **kw)
         is_user=role=="user"
-        bg=BG_HOVER if is_user else BG_RAISED
-        tc=BLUE if is_user else TEXT_PRI
+        bg=CARD2 if is_user else CARD
+        tc=ACCENT if is_user else TEXT
         name="you" if is_user else "lado"
         side="e" if is_user else "w"
 
-        wrap=ctk.CTkFrame(self,fg_color="transparent")
-        wrap.pack(anchor=side,padx=8,fill="x")
+        wrap=ctk.CTkFrame(self, fg_color="transparent")
+        wrap.pack(anchor=side, fill="x", padx=8)
 
-        ctk.CTkLabel(wrap,text=name,
-            font=ctk.CTkFont(family="Segoe UI",size=8),
-            text_color=TEXT_MUT).pack(anchor=side,padx=16,pady=(8,0))
+        ctk.CTkLabel(wrap, text=name,
+            font=ctk.CTkFont(family="Segoe UI", size=8),
+            text_color=DIM).pack(anchor=side, padx=16, pady=(10,0))
 
-        bub=ctk.CTkFrame(wrap,fg_color=bg,corner_radius=8,
-                         border_color=BORDER,border_width=1)
-        bub.pack(anchor=side,padx=8,pady=(2,8))
-        ctk.CTkLabel(bub,text=text,
-            font=ctk.CTkFont(family="Segoe UI",size=10),
-            text_color=tc,wraplength=540,justify="left",anchor="w").pack(
-            padx=14,pady=10)
+        bub=ctk.CTkFrame(wrap, fg_color=bg, corner_radius=10,
+                         border_color=BORDER, border_width=1)
+        bub.pack(anchor=side, padx=8, pady=(3,10))
+
+        ctk.CTkLabel(bub, text=text,
+            font=ctk.CTkFont(family="Segoe UI", size=10),
+            text_color=tc, wraplength=560,
+            justify="left", anchor="w").pack(padx=16, pady=12)
 
 
 class ChatPanel(ctk.CTkFrame):
-    def __init__(self,parent,**kw):
-        super().__init__(parent,fg_color="transparent",**kw)
+    def __init__(self, parent, **kw):
+        super().__init__(parent, fg_color="transparent", **kw)
         self._build()
 
     def _build(self):
-        hdr=ctk.CTkFrame(self,fg_color="transparent")
-        hdr.pack(fill="x",padx=32,pady=(28,0))
-        ctk.CTkLabel(hdr,text="Chat",
-            font=ctk.CTkFont(family="Segoe UI",size=20,weight="bold"),
-            text_color=TEXT_PRI).pack(side="left")
+        hdr=ctk.CTkFrame(self, fg_color="transparent")
+        hdr.pack(fill="x", padx=36, pady=(32,0))
+        left=ctk.CTkFrame(hdr, fg_color="transparent")
+        left.pack(side="left")
+        ctk.CTkLabel(left, text="Chat",
+            font=ctk.CTkFont(family="Segoe UI", size=22, weight="bold"),
+            text_color=TEXT).pack(anchor="w")
+        ctk.CTkLabel(left, text="Ask LADO anything about your files or anything else",
+            font=ctk.CTkFont(family="Segoe UI", size=11),
+            text_color=MUTED).pack(anchor="w", pady=(2,0))
 
-        st,sc=(("● online",GREEN) if LLM else ("● offline",TEXT_SEC))
-        ctk.CTkLabel(hdr,text=st,
-            font=ctk.CTkFont(family="Segoe UI",size=9),
-            text_color=sc).pack(side="right",padx=(0,12))
+        right=ctk.CTkFrame(hdr, fg_color="transparent")
+        right.pack(side="right")
+        st,sc=(("● online",ACCENTG) if LLM else ("● offline",MUTED))
+        ctk.CTkLabel(right, text=st,
+            font=ctk.CTkFont(family="Segoe UI", size=9),
+            text_color=sc).pack(side="right", padx=(8,0))
+        ctk.CTkButton(right, text="Clear", width=62, height=28,
+            font=ctk.CTkFont(family="Segoe UI", size=9),
+            fg_color="transparent", border_color=BORDER_HI, border_width=1,
+            text_color=MUTED, hover_color=CARD2, corner_radius=7,
+            command=self._clear).pack(side="right")
 
-        ctk.CTkButton(hdr,text="Clear",width=60,height=26,
-            font=ctk.CTkFont(family="Segoe UI",size=9),
-            fg_color="transparent",border_color=BORDER,border_width=1,
-            text_color=TEXT_SEC,hover_color=BG_HOVER,
-            corner_radius=5,command=self._clear).pack(side="right",padx=(0,8))
+        ctk.CTkFrame(self, fg_color=BORDER, height=1).pack(fill="x", padx=36, pady=24)
 
-        ctk.CTkFrame(self,fg_color=BORDER,height=1).pack(fill="x",padx=32,pady=20)
+        self._scroll=ctk.CTkScrollableFrame(self, fg_color=SURFACE, corner_radius=12)
+        self._scroll.pack(fill="both", expand=True, padx=36, pady=(0,14))
 
-        self._scroll=ctk.CTkScrollableFrame(self,fg_color=BG_SURFACE,corner_radius=10)
-        self._scroll.pack(fill="both",expand=True,padx=32,pady=(0,12))
+        Bubble(self._scroll,
+            "Hey! I'm LADO. Ask me anything — your files, duplicates, storage, or just say hi.",
+            "assistant").pack(fill="x")
 
-        Bubble(self._scroll,"Hey! I'm LADO. Ask me anything — your files, duplicates, storage, or just say hi.","assistant").pack(fill="x")
+        # Input row
+        inp=ctk.CTkFrame(self, fg_color=CARD, corner_radius=12,
+                         border_color=BORDER, border_width=1)
+        inp.pack(fill="x", padx=36, pady=(0,28))
 
-        inp=ctk.CTkFrame(self,fg_color=BG_RAISED,corner_radius=8,
-                         border_color=BORDER,border_width=1)
-        inp.pack(fill="x",padx=32,pady=(0,24))
+        self._inp=ctk.CTkEntry(inp, placeholder_text="Ask LADO anything…",
+            font=ctk.CTkFont(family="Segoe UI", size=10), height=40,
+            fg_color="transparent", border_width=0, text_color=TEXT)
+        self._inp.pack(side="left", fill="x", expand=True, padx=14, pady=10)
+        self._inp.bind("<Return>", lambda e:self._send())
 
-        self._inp=ctk.CTkEntry(inp,placeholder_text="Ask LADO anything…",
-            font=ctk.CTkFont(family="Segoe UI",size=10),height=38,
-            fg_color="transparent",border_width=0,text_color=TEXT_PRI)
-        self._inp.pack(side="left",fill="x",expand=True,padx=12,pady=8)
-        self._inp.bind("<Return>",lambda e:self._send())
-
-        self._sbtn=ctk.CTkButton(inp,text="Send",width=68,height=30,
-            font=ctk.CTkFont(family="Segoe UI",size=10),
-            fg_color=BLUE,text_color=BG_BASE,hover_color="#6bb3e8",
-            corner_radius=6,command=self._send)
-        self._sbtn.pack(side="right",padx=8)
+        self._sbtn=ctk.CTkButton(inp, text="Send", width=72, height=32,
+            font=ctk.CTkFont(family="Segoe UI", size=10),
+            fg_color=ACCENT, text_color=BG, hover_color="#7aa5f5",
+            corner_radius=8, command=self._send)
+        self._sbtn.pack(side="right", padx=10)
 
     def _send(self):
         msg=self._inp.get().strip()
         if not msg: return
         self._inp.delete(0,"end")
-        self._sbtn.configure(state="disabled",text="…")
-        Bubble(self._scroll,msg,"user").pack(fill="x")
+        self._sbtn.configure(state="disabled", text="…")
+        Bubble(self._scroll, msg, "user").pack(fill="x")
         self._scroll._parent_canvas.yview_moveto(1.0)
-        thinking=ctk.CTkLabel(self._scroll,text="thinking…",
-            font=ctk.CTkFont(family="Segoe UI",size=9),text_color=TEXT_MUT)
-        thinking.pack(anchor="w",padx=24,pady=4)
+        thinking=ctk.CTkLabel(self._scroll, text="thinking…",
+            font=ctk.CTkFont(family="Segoe UI", size=9), text_color=DIM)
+        thinking.pack(anchor="w", padx=24, pady=4)
         self._scroll._parent_canvas.yview_moveto(1.0)
-        def _work():
-            r=query(msg)
-            self.after(0,lambda:self._reply(r,thinking))
-        threading.Thread(target=_work,daemon=True).start()
+        threading.Thread(target=lambda:self._work(msg, thinking), daemon=True).start()
 
-    def _reply(self,text,thinking):
+    def _work(self, msg, thinking):
+        r=query(msg)
+        self.after(0, lambda:self._reply(r, thinking))
+
+    def _reply(self, text, thinking):
         thinking.destroy()
-        Bubble(self._scroll,text,"assistant").pack(fill="x")
+        Bubble(self._scroll, text, "assistant").pack(fill="x")
         self._scroll._parent_canvas.yview_moveto(1.0)
-        self._sbtn.configure(state="normal",text="Send")
+        self._sbtn.configure(state="normal", text="Send")
 
     def _clear(self):
         if LLM:
             try: reset_conversation()
             except: pass
         for w in self._scroll.winfo_children(): w.destroy()
-        Bubble(self._scroll,"Conversation reset. What do you need?","assistant").pack(fill="x")
+        Bubble(self._scroll, "Cleared. What do you need?", "assistant").pack(fill="x")

@@ -1,13 +1,15 @@
-import customtkinter as ctk, sqlite3, sys, os
+import customtkinter as ctk, sqlite3, sys, os, threading
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from config import DB_PATH
 
-BG_BASE="#050508";BG_SURFACE="#0c0c12";BG_RAISED="#121219";BG_HOVER="#1a1a24"
-BORDER="#1e1e2e";TEXT_PRI="#f0f0f8";TEXT_SEC="#6b6b8a";TEXT_MUT="#2e2e48"
-BLUE="#4d9de0";GREEN="#3ddc84";AMBER="#f5a623"
+BG="#07080f";SURFACE="#0e0f1a";CARD="#13141f";CARD2="#181926"
+BORDER="#1f2035";BORDER_HI="#2a2d4a"
+TEXT="#eeeef5";MUTED="#5a5b7a";DIM="#272840"
+ACCENT="#5b8dee";ACCENTG="#3ecf8e";ACCENTR="#e05c72";ACCENTY="#f0a84a"
+SK1="#13141f";SK2="#1c1d2e"
 
-COLS  = ["Name","Ext","Size (MB)","Modified","Path"]
-WIDTHS= [210,60,90,130,300]
+COLS   = ["Name", "Type", "Size", "Modified", "Path"]
+WIDTHS = [220, 65, 85, 140, 310]
 
 def load(ext=None, min_mb=None, search=None):
     try:
@@ -23,7 +25,7 @@ def load(ext=None, min_mb=None, search=None):
             conds.append("LOWER(name) LIKE LOWER(?)"); params.append(f"%{search}%")
         if conds: q+=" WHERE "+" AND ".join(conds)
         q+=" ORDER BY size_mb DESC LIMIT 500"
-        cur.execute(q, params); rows=cur.fetchall(); conn.close(); return rows
+        cur.execute(q,params); rows=cur.fetchall(); conn.close(); return rows
     except: return []
 
 def get_exts():
@@ -34,92 +36,133 @@ def get_exts():
     except: return ["All"]
 
 
+class SkeletonRow(ctk.CTkFrame):
+    def __init__(self, parent, shade, **kw):
+        super().__init__(parent, fg_color=shade, corner_radius=0, height=28, **kw)
+        self.pack_propagate(False)
+        self._phase = 0; self._bars = []
+        for i, w in enumerate([190, 55, 70, 120, 260]):
+            b = ctk.CTkFrame(self, fg_color=SK2, corner_radius=3, width=w, height=9)
+            b.pack(side="left", padx=(18 if i==0 else 10, 0), pady=10)
+            b.pack_propagate(False)
+            self._bars.append(b)
+        self._tick()
+
+    def _tick(self):
+        if not self.winfo_exists(): return
+        self._phase = (self._phase+1) % 24
+        c = SK2 if self._phase < 12 else SK1
+        for b in self._bars:
+            if b.winfo_exists(): b.configure(fg_color=c)
+        self.after(90, self._tick)
+
+
 class FileBrowserPanel(ctk.CTkFrame):
     def __init__(self, parent, **kw):
         super().__init__(parent, fg_color="transparent", **kw)
         self._build()
 
     def _build(self):
-        hdr=ctk.CTkFrame(self,fg_color="transparent")
-        hdr.pack(fill="x",padx=32,pady=(28,0))
-        ctk.CTkLabel(hdr,text="Files",
-            font=ctk.CTkFont(family="Segoe UI",size=20,weight="bold"),
-            text_color=TEXT_PRI).pack(side="left")
-        self._cnt=ctk.CTkLabel(hdr,text="",
-            font=ctk.CTkFont(family="Segoe UI",size=10),text_color=TEXT_SEC)
+        # Header
+        hdr = ctk.CTkFrame(self, fg_color="transparent")
+        hdr.pack(fill="x", padx=36, pady=(32, 0))
+        left = ctk.CTkFrame(hdr, fg_color="transparent")
+        left.pack(side="left")
+        ctk.CTkLabel(left, text="Files",
+            font=ctk.CTkFont(family="Segoe UI", size=22, weight="bold"),
+            text_color=TEXT).pack(anchor="w")
+        ctk.CTkLabel(left, text="Browse and search your indexed file system",
+            font=ctk.CTkFont(family="Segoe UI", size=11),
+            text_color=MUTED).pack(anchor="w", pady=(2, 0))
+        self._cnt = ctk.CTkLabel(hdr, text="",
+            font=ctk.CTkFont(family="Segoe UI", size=10), text_color=MUTED)
         self._cnt.pack(side="right")
 
-        ctk.CTkFrame(self,fg_color=BORDER,height=1).pack(fill="x",padx=32,pady=20)
+        ctk.CTkFrame(self, fg_color=BORDER, height=1).pack(fill="x", padx=36, pady=24)
 
-        fb=ctk.CTkFrame(self,fg_color=BG_RAISED,corner_radius=8,
-                        border_color=BORDER,border_width=1)
-        fb.pack(fill="x",padx=32,pady=(0,16))
+        # Filter bar
+        fb = ctk.CTkFrame(self, fg_color=CARD, corner_radius=12,
+                          border_color=BORDER, border_width=1)
+        fb.pack(fill="x", padx=36, pady=(0, 16))
 
-        self._sv=ctk.StringVar()
-        ctk.CTkEntry(fb,textvariable=self._sv,placeholder_text="Search files…",
-            width=200,height=32,font=ctk.CTkFont(family="Segoe UI",size=10),
-            fg_color=BG_BASE,border_color=BORDER,border_width=1,
-            text_color=TEXT_PRI).pack(side="left",padx=12,pady=10)
+        self._sv = ctk.StringVar()
+        ctk.CTkEntry(fb, textvariable=self._sv, placeholder_text="Search by filename…",
+            width=220, height=34, font=ctk.CTkFont(family="Segoe UI", size=10),
+            fg_color=CARD2, border_color=BORDER_HI, border_width=1,
+            text_color=TEXT, corner_radius=8).pack(side="left", padx=14, pady=12)
 
-        self._ev=ctk.StringVar(value="All")
-        ctk.CTkOptionMenu(fb,variable=self._ev,values=get_exts(),
-            width=110,height=32,font=ctk.CTkFont(family="Segoe UI",size=10),
-            fg_color=BG_BASE,button_color=BG_HOVER,
-            dropdown_fg_color=BG_RAISED,text_color=TEXT_SEC).pack(side="left",padx=(0,8))
+        self._ev = ctk.StringVar(value="All")
+        ctk.CTkOptionMenu(fb, variable=self._ev, values=get_exts(),
+            width=110, height=34, font=ctk.CTkFont(family="Segoe UI", size=10),
+            fg_color=CARD2, button_color=BORDER_HI, button_hover_color=CARD2,
+            dropdown_fg_color=CARD, text_color=MUTED,
+            corner_radius=8).pack(side="left", padx=(0, 10))
 
-        self._mv=ctk.StringVar()
-        ctk.CTkEntry(fb,textvariable=self._mv,placeholder_text="Min MB",
-            width=80,height=32,font=ctk.CTkFont(family="Segoe UI",size=10),
-            fg_color=BG_BASE,border_color=BORDER,border_width=1,
-            text_color=TEXT_PRI).pack(side="left",padx=(0,10))
+        self._mv = ctk.StringVar()
+        ctk.CTkEntry(fb, textvariable=self._mv, placeholder_text="Min MB",
+            width=88, height=34, font=ctk.CTkFont(family="Segoe UI", size=10),
+            fg_color=CARD2, border_color=BORDER_HI, border_width=1,
+            text_color=TEXT, corner_radius=8).pack(side="left", padx=(0, 12))
 
-        ctk.CTkButton(fb,text="Apply",width=72,height=32,
-            font=ctk.CTkFont(family="Segoe UI",size=10),
-            fg_color=BLUE,text_color="#050508",hover_color="#6bb3e8",
-            corner_radius=6,command=self._apply).pack(side="left")
+        ctk.CTkButton(fb, text="Search", width=80, height=34,
+            font=ctk.CTkFont(family="Segoe UI", size=10),
+            fg_color=ACCENT, text_color=BG, hover_color="#7aa5f5",
+            corner_radius=8, command=self._apply).pack(side="left")
 
-        ch=ctk.CTkFrame(self,fg_color=BG_SURFACE,corner_radius=0,height=30)
-        ch.pack(fill="x",padx=32); ch.pack_propagate(False)
-        for i,(col,w) in enumerate(zip(COLS,WIDTHS)):
-            ctk.CTkLabel(ch,text=col,
-                font=ctk.CTkFont(family="Segoe UI",size=9,weight="bold"),
-                text_color=TEXT_SEC,width=w,anchor="w").pack(
-                side="left",padx=(16 if i==0 else 6,0))
+        # Column headers
+        ch = ctk.CTkFrame(self, fg_color=SURFACE, corner_radius=0, height=32)
+        ch.pack(fill="x", padx=36); ch.pack_propagate(False)
+        for i, (col, w) in enumerate(zip(COLS, WIDTHS)):
+            ctk.CTkLabel(ch, text=col,
+                font=ctk.CTkFont(family="Segoe UI", size=9, weight="bold"),
+                text_color=DIM, width=w, anchor="w").pack(
+                side="left", padx=(18 if i==0 else 8, 0))
 
-        self._scroll=ctk.CTkScrollableFrame(self,fg_color="transparent",corner_radius=0)
-        self._scroll.pack(fill="both",expand=True,padx=32,pady=(0,24))
-        self._load()
+        # Scroll area
+        self._scroll = ctk.CTkScrollableFrame(self, fg_color="transparent", corner_radius=0)
+        self._scroll.pack(fill="both", expand=True, padx=36, pady=(0, 28))
 
-    def _load(self,ext=None,min_mb=None,search=None):
+        # Skeletons instantly, fetch in background
+        self._show_skeletons()
+        threading.Thread(target=self._bg_fetch, args=(None,None,None), daemon=True).start()
+
+    def _show_skeletons(self):
         for w in self._scroll.winfo_children(): w.destroy()
-        loading=ctk.CTkLabel(self._scroll,text="Loading files…",
-            font=ctk.CTkFont(family="Segoe UI",size=11),text_color=TEXT_SEC)
-        loading.pack(pady=24)
-        self._scroll.update()
-        rows=load(ext,min_mb,search)
-        loading.destroy()
-        self._cnt.configure(text=f"{len(rows)} files")
-        self._render_batch(rows,0)
+        for i in range(16):
+            SkeletonRow(self._scroll, shade=CARD if i%2==0 else SURFACE).pack(fill="x")
 
-    def _render_batch(self,rows,start):
-        end=min(start+50,len(rows))
-        for i in range(start,end):
-            r=rows[i]
-            bg=BG_RAISED if i%2==0 else BG_SURFACE
-            row=ctk.CTkFrame(self._scroll,fg_color=bg,corner_radius=0,height=26)
+    def _bg_fetch(self, ext, min_mb, search):
+        rows = load(ext, min_mb, search)
+        self.after(0, lambda: self._render(rows))
+
+    def _render(self, rows):
+        if not self.winfo_exists(): return
+        for w in self._scroll.winfo_children(): w.destroy()
+        self._cnt.configure(text=f"{len(rows)} files")
+        self._render_batch(rows, 0)
+
+    def _render_batch(self, rows, start):
+        if not self.winfo_exists(): return
+        end = min(start+50, len(rows))
+        for i in range(start, end):
+            r = rows[i]
+            bg = CARD if i%2==0 else SURFACE
+            row = ctk.CTkFrame(self._scroll, fg_color=bg, corner_radius=0, height=28)
             row.pack(fill="x"); row.pack_propagate(False)
-            vals=[str(r[0])[:35],f".{r[1]}" if r[1] else "",
-                  f"{float(r[2] or 0):.1f}",str(r[3] or "")[:16],str(r[4])]
-            colors=[TEXT_PRI,BLUE,AMBER,TEXT_SEC,TEXT_MUT]
-            for j,(v,c,w) in enumerate(zip(vals,colors,WIDTHS)):
-                ctk.CTkLabel(row,text=v,
-                    font=ctk.CTkFont(family="Segoe UI",size=10),
-                    text_color=c,width=w,anchor="w").pack(
-                    side="left",padx=(16 if j==0 else 6,0))
-        if end<len(rows):
-            self._scroll.after(10,lambda:self._render_batch(rows,end))
+            vals = [str(r[0])[:38], f".{r[1]}" if r[1] else "",
+                    f"{float(r[2] or 0):.1f} MB", str(r[3] or "")[:16], str(r[4])]
+            colors = [TEXT, ACCENT, ACCENTY, MUTED, DIM]
+            for j, (v, c, w) in enumerate(zip(vals, colors, WIDTHS)):
+                ctk.CTkLabel(row, text=v,
+                    font=ctk.CTkFont(family="Segoe UI", size=10),
+                    text_color=c, width=w, anchor="w").pack(
+                    side="left", padx=(18 if j==0 else 8, 0))
+        if end < len(rows):
+            self._scroll.after(10, lambda: self._render_batch(rows, end))
 
     def _apply(self):
-        e=self._ev.get() if self._ev.get()!="All" else None
-        self._load(ext=e,min_mb=self._mv.get().strip() or None,
-                   search=self._sv.get().strip() or None)
+        e = self._ev.get() if self._ev.get()!="All" else None
+        self._show_skeletons()
+        threading.Thread(target=self._bg_fetch,
+            args=(e, self._mv.get().strip() or None, self._sv.get().strip() or None),
+            daemon=True).start()

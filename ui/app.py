@@ -11,16 +11,23 @@ from ui.chat         import ChatPanel
 ctk.set_appearance_mode("dark")
 ctk.set_default_color_theme("blue")
 
-BG_BASE    = "#050508"
-BG_SURFACE = "#0c0c12"
-BG_RAISED  = "#121219"
-BORDER     = "#1e1e2e"
-TEXT_PRI   = "#f0f0f8"
-TEXT_SEC   = "#6b6b8a"
-ACCENT     = "#4d9de0"
+# ── Palette ────────────────────────────────────────────────────
+BG        = "#07080f"
+SURFACE   = "#0e0f1a"
+CARD      = "#13141f"
+CARD2     = "#181926"
+BORDER    = "#1f2035"
+BORDER_HI = "#2a2d4a"
+TEXT      = "#eeeef5"
+MUTED     = "#5a5b7a"
+DIM       = "#272840"
+ACCENT    = "#5b8dee"   # soft blue
+ACCENTG   = "#3ecf8e"   # green
+ACCENTR   = "#e05c72"   # rose
+ACCENTY   = "#f0a84a"   # amber
 
 NAV = [
-    ("Dashboard",   "◈", DashboardPanel),
+    ("Dashboard",   "○", DashboardPanel),
     ("Files",       "◫", FileBrowserPanel),
     ("Suggestions", "◎", SuggestionsPanel),
     ("Duplicates",  "⊞", DuplicatesPanel),
@@ -31,81 +38,96 @@ class NavBtn(ctk.CTkButton):
     def __init__(self, parent, icon, label, cmd):
         super().__init__(
             parent,
-            text=f" {icon}   {label}",
-            anchor="w", height=38,
+            text=f"  {icon}   {label}",
+            anchor="w", height=40,
             font=ctk.CTkFont(family="Segoe UI", size=11),
             fg_color="transparent",
-            text_color=TEXT_SEC,
-            hover_color=BG_RAISED,
-            corner_radius=6,
+            text_color=MUTED,
+            hover_color=CARD2,
+            corner_radius=8,
             border_width=0,
             command=cmd,
         )
+
     def activate(self):
         self.configure(
-            fg_color=BG_RAISED,
-            text_color=ACCENT,
-            border_color="#1e2a38",
+            fg_color=CARD2,
+            text_color=TEXT,
+            border_color=BORDER_HI,
             border_width=1,
         )
+
     def deactivate(self):
-        self.configure(fg_color="transparent", text_color=TEXT_SEC, border_width=0)
+        self.configure(
+            fg_color="transparent",
+            text_color=MUTED,
+            border_width=0,
+        )
 
 
 class LADOApp(ctk.CTk):
     def __init__(self):
         super().__init__()
         self.title("LADO")
-        self.geometry("1300x780")
-        self.minsize(960, 600)
-        self.configure(fg_color=BG_BASE)
+        self.geometry("1360x820")
+        self.minsize(1000, 640)
+        self.configure(fg_color=BG)
         self._active_btn = None
         self._build()
 
     def _build(self):
-        # ── Sidebar ──────────────────────────────────────
-        self.sb = ctk.CTkFrame(self, fg_color=BG_SURFACE, width=220, corner_radius=0)
-        self.sb.pack(side="left", fill="y")
-        self.sb.pack_propagate(False)
+        # ── Sidebar ───────────────────────────────────────────
+        sb = ctk.CTkFrame(self, fg_color=SURFACE, width=230, corner_radius=0)
+        sb.pack(side="left", fill="y")
+        sb.pack_propagate(False)
 
-        # thin right border on sidebar
-        ctk.CTkFrame(self.sb, fg_color=BORDER, width=1).pack(side="right", fill="y")
+        # hairline border
+        ctk.CTkFrame(sb, fg_color=BORDER, width=1).pack(side="right", fill="y")
 
-        inner = ctk.CTkFrame(self.sb, fg_color="transparent")
-        inner.pack(fill="both", expand=True, padx=0)
+        inner = ctk.CTkFrame(sb, fg_color="transparent")
+        inner.pack(fill="both", expand=True)
 
-        # Wordmark
-        wm = ctk.CTkFrame(inner, fg_color="transparent")
-        wm.pack(fill="x", padx=20, pady=(28, 0))
-        ctk.CTkLabel(wm, text="LADO",
-            font=ctk.CTkFont(family="Segoe UI", size=20, weight="bold"),
-            text_color=TEXT_PRI).pack(anchor="w")
-        ctk.CTkLabel(wm, text="autonomous file agent",
+        # Logo block
+        logo = ctk.CTkFrame(inner, fg_color="transparent")
+        logo.pack(fill="x", padx=22, pady=(32, 0))
+
+        # accent dot
+        dot_row = ctk.CTkFrame(logo, fg_color="transparent")
+        dot_row.pack(anchor="w")
+        ctk.CTkFrame(dot_row, fg_color=ACCENT, width=8, height=8,
+                     corner_radius=4).pack(side="left", pady=2)
+        ctk.CTkLabel(dot_row, text="  LADO",
+            font=ctk.CTkFont(family="Segoe UI", size=18, weight="bold"),
+            text_color=TEXT).pack(side="left")
+
+        ctk.CTkLabel(inner, text="autonomous file agent",
             font=ctk.CTkFont(family="Segoe UI", size=9),
-            text_color=TEXT_SEC).pack(anchor="w", pady=(1,0))
+            text_color=DIM).pack(anchor="w", padx=22, pady=(4, 0))
 
-        # Divider
-        ctk.CTkFrame(inner, fg_color=BORDER, height=1).pack(fill="x", padx=20, pady=22)
+        # divider
+        ctk.CTkFrame(inner, fg_color=BORDER, height=1).pack(
+            fill="x", padx=22, pady=28)
 
-        # Nav label
-        ctk.CTkLabel(inner, text="MENU",
-            font=ctk.CTkFont(family="Segoe UI", size=9),
-            text_color=TEXT_SEC).pack(anchor="w", padx=22, pady=(0,8))
+        ctk.CTkLabel(inner, text="NAVIGATE",
+            font=ctk.CTkFont(family="Segoe UI", size=8),
+            text_color=DIM).pack(anchor="w", padx=24, pady=(0, 10))
 
-        # Nav buttons
         self._btns = {}
         for label, icon, cls in NAV:
-            b = NavBtn(inner, icon, label, lambda l=label, c=cls: self._switch(l, c))
-            b.pack(fill="x", padx=10, pady=1)
+            b = NavBtn(inner, icon, label,
+                       lambda l=label, c=cls: self._switch(l, c))
+            b.pack(fill="x", padx=12, pady=2)
             self._btns[label] = b
 
-        # Bottom tag
-        ctk.CTkLabel(inner, text="Phase 1–3  ·  v0.1",
+        # bottom version tag
+        ctk.CTkFrame(inner, fg_color=BORDER, height=1).pack(
+            fill="x", padx=22, side="bottom", pady=(0, 14))
+        ctk.CTkLabel(inner, text="v0.1  ·  Phase 1–3",
             font=ctk.CTkFont(family="Segoe UI", size=9),
-            text_color=TEXT_SEC).pack(side="bottom", pady=18)
+            text_color=DIM).pack(side="bottom", pady=(0, 6))
 
-        # ── Content ───────────────────────────────────────
-        self.content = ctk.CTkFrame(self, fg_color=BG_BASE, corner_radius=0)
+        # ── Content ───────────────────────────────────────────
+        self.content = ctk.CTkFrame(self, fg_color=BG, corner_radius=0)
         self.content.pack(side="right", fill="both", expand=True)
 
         self._switch("Dashboard", DashboardPanel)
