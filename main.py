@@ -5,6 +5,7 @@ from core.scanner import run_full_scan
 from core.hashing import find_duplicates
 from core.policy_engine import run_policy_engine
 from core.llm import summarize_scan, answer_user_question, reset_conversation
+from core.action_engine import execute_approved_suggestions
 
 def run_lado():
     # ── 1. Setup ───────────────────────────────────────────────
@@ -27,6 +28,7 @@ def run_lado():
     run_policy_engine(logger)
 
     # ── 6. Print summary ───────────────────────────────────────
+    execute_approved_suggestions(logger)
     summary = get_summary()
     logger.info("=" * 50)
     logger.info("LADO run complete")
