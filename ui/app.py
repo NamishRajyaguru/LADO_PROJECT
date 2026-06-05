@@ -7,6 +7,7 @@ from ui.suggestions  import SuggestionsPanel
 from ui.duplicates   import DuplicatesPanel
 from ui.file_browser import FileBrowserPanel
 from ui.chat         import ChatPanel
+from ui.logs         import LogsPanel
 
 ctk.set_appearance_mode("dark")
 ctk.set_default_color_theme("blue")
@@ -32,6 +33,7 @@ NAV = [
     ("Suggestions", "◎", SuggestionsPanel),
     ("Duplicates",  "⊞", DuplicatesPanel),
     ("Chat",        "◉", ChatPanel),
+    ("Logs",        "≡", LogsPanel),
 ]
 
 class NavBtn(ctk.CTkButton):

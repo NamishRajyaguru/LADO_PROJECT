@@ -8,12 +8,14 @@ TEXT="#eeeef5";MUTED="#5a5b7a";DIM="#272840"
 ACCENT="#5b8dee";ACCENTG="#3ecf8e";ACCENTR="#e05c72";ACCENTY="#f0a84a"
 SK1="#13141f";SK2="#1c1d2e"
 
+_cache = None  # module-level cache
+
 def clusters():
     try:
         c=sqlite3.connect(DB_PATH).cursor()
         c.execute("""SELECT hash,COUNT(*) cnt,SUM(size_mb) sz FROM files
                      WHERE hash IS NOT NULL AND hash!=''
-                     GROUP BY hash HAVING cnt>1 ORDER BY sz DESC""")
+                     GROUP BY hash HAVING cnt>1 ORDER BY sz DESC LIMIT 20""")
         return c.fetchall()
     except: return []
 
@@ -35,8 +37,7 @@ class SkeletonCluster(ctk.CTkFrame):
         for w,side in [(130,"left"),(80,"left"),(100,"left"),(150,"right")]:
             b=ctk.CTkFrame(row, fg_color=SK2, corner_radius=3, width=w, height=10)
             b.pack(side=side, padx=(0 if side=="right" else 14,0))
-            b.pack_propagate(False)
-            self._bars.append(b)
+            b.pack_propagate(False); self._bars.append(b)
         self._tick()
 
     def _tick(self):
@@ -57,7 +58,6 @@ class Cluster(ctk.CTkFrame):
         self._expanded=False; self._detail=None
         wasted=self._sz*(self._cnt-1)/self._cnt if self._cnt>1 else 0
 
-        # top accent
         ctk.CTkFrame(self, fg_color=ACCENTR, height=2, corner_radius=0).pack(fill="x", side="top")
 
         hdr=ctk.CTkFrame(self, fg_color="transparent", cursor="hand2")
@@ -65,29 +65,29 @@ class Cluster(ctk.CTkFrame):
         hdr.bind("<Button-1>", self._toggle)
 
         self._arrow=ctk.CTkLabel(hdr, text="›",
-            font=ctk.CTkFont(family="Segoe UI", size=16), text_color=MUTED, width=16)
+            font=ctk.CTkFont(family="Segoe UI",size=16),
+            text_color=MUTED, width=16)
         self._arrow.pack(side="left")
         self._arrow.bind("<Button-1>", self._toggle)
 
         ctk.CTkLabel(hdr, text=f"  Cluster {idx+1}",
-            font=ctk.CTkFont(family="Segoe UI", size=11, weight="bold"),
+            font=ctk.CTkFont(family="Segoe UI",size=11,weight="bold"),
             text_color=TEXT).pack(side="left")
         ctk.CTkLabel(hdr, text=f"  ·  {self._cnt} copies",
-            font=ctk.CTkFont(family="Segoe UI", size=10),
+            font=ctk.CTkFont(family="Segoe UI",size=10),
             text_color=MUTED).pack(side="left")
         ctk.CTkLabel(hdr, text=f"  ·  {self._sz:.1f} MB total",
-            font=ctk.CTkFont(family="Segoe UI", size=10),
+            font=ctk.CTkFont(family="Segoe UI",size=10),
             text_color=ACCENTY).pack(side="left")
 
-        # recoverable badge
         badge=ctk.CTkFrame(hdr, fg_color=CARD2, corner_radius=6)
         badge.pack(side="right")
         ctk.CTkLabel(badge, text=f"  ↓ {wasted:.1f} MB free  ",
-            font=ctk.CTkFont(family="Segoe UI", size=9, weight="bold"),
+            font=ctk.CTkFont(family="Segoe UI",size=9,weight="bold"),
             text_color=ACCENTG).pack(padx=2, pady=4)
 
         ctk.CTkLabel(hdr, text=f"{self._hash[:10]}…",
-            font=ctk.CTkFont(family="Segoe UI", size=8),
+            font=ctk.CTkFont(family="Segoe UI",size=8),
             text_color=DIM).pack(side="right", padx=(0,10))
 
     def _toggle(self, e=None):
@@ -99,17 +99,17 @@ class Cluster(ctk.CTkFrame):
             for i,(path,name,mb,mod) in enumerate(files_in(self._hash)):
                 row=ctk.CTkFrame(self._detail, fg_color="transparent")
                 row.pack(fill="x", padx=14, pady=4)
-                dot_c=ACCENTG if i==0 else MUTED
                 ctk.CTkLabel(row, text="●",
-                    font=ctk.CTkFont(size=7), text_color=dot_c, width=12).pack(side="left")
+                    font=ctk.CTkFont(size=7),
+                    text_color=ACCENTG if i==0 else MUTED, width=12).pack(side="left")
                 ctk.CTkLabel(row, text=f"  {name}",
-                    font=ctk.CTkFont(family="Segoe UI", size=10, weight="bold"),
+                    font=ctk.CTkFont(family="Segoe UI",size=10,weight="bold"),
                     text_color=TEXT).pack(side="left")
                 ctk.CTkLabel(row, text=f"  {float(mb or 0):.1f} MB",
-                    font=ctk.CTkFont(family="Segoe UI", size=9),
+                    font=ctk.CTkFont(family="Segoe UI",size=9),
                     text_color=ACCENTY).pack(side="left")
                 ctk.CTkLabel(row, text=f"  {path}",
-                    font=ctk.CTkFont(family="Segoe UI", size=9),
+                    font=ctk.CTkFont(family="Segoe UI",size=9),
                     text_color=DIM).pack(side="left")
         else:
             if self._detail: self._detail.destroy(); self._detail=None
@@ -126,52 +126,50 @@ class DuplicatesPanel(ctk.CTkFrame):
         left=ctk.CTkFrame(hdr, fg_color="transparent")
         left.pack(side="left")
         ctk.CTkLabel(left, text="Duplicates",
-            font=ctk.CTkFont(family="Segoe UI", size=22, weight="bold"),
+            font=ctk.CTkFont(family="Segoe UI",size=22,weight="bold"),
             text_color=TEXT).pack(anchor="w")
         ctk.CTkLabel(left, text="Groups of identical files — expand to see paths",
-            font=ctk.CTkFont(family="Segoe UI", size=11),
+            font=ctk.CTkFont(family="Segoe UI",size=11),
             text_color=MUTED).pack(anchor="w", pady=(2,0))
         self._stats=ctk.CTkLabel(hdr, text="",
-            font=ctk.CTkFont(family="Segoe UI", size=11, weight="bold"),
+            font=ctk.CTkFont(family="Segoe UI",size=11,weight="bold"),
             text_color=ACCENTG)
         self._stats.pack(side="right")
 
         ctk.CTkFrame(self, fg_color=BORDER, height=1).pack(fill="x", padx=36, pady=24)
 
         self._cnt=ctk.CTkLabel(self, text="",
-            font=ctk.CTkFont(family="Segoe UI", size=10), text_color=MUTED)
+            font=ctk.CTkFont(family="Segoe UI",size=10), text_color=MUTED)
         self._cnt.pack(anchor="w", padx=36, pady=(0,12))
 
         self._scroll=ctk.CTkScrollableFrame(self, fg_color="transparent")
         self._scroll.pack(fill="both", expand=True, padx=36, pady=(0,28))
 
-        # skeletons immediately
-        for _ in range(6):
-            SkeletonCluster(self._scroll).pack(fill="x", pady=6)
-
-        threading.Thread(target=self._bg, daemon=True).start()
+        global _cache
+        if _cache is not None:
+            # already fetched — render instantly
+            self._render(_cache)
+        else:
+            for _ in range(6):
+                SkeletonCluster(self._scroll).pack(fill="x", pady=6)
+            threading.Thread(target=self._bg, daemon=True).start()
 
     def _bg(self):
         cl=clusters()
-        self.after(0, lambda:self._render(cl))
+        self.after(0, lambda: self._render(cl))
 
     def _render(self, cl):
+        global _cache
         if not self.winfo_exists(): return
+        _cache=cl
         wasted=sum(float(sz or 0)*(cnt-1)/cnt for _,cnt,sz in cl if cnt>1)
         for w in self._scroll.winfo_children(): w.destroy()
         self._stats.configure(text=f"↓ {wasted:.1f} MB recoverable")
         self._cnt.configure(text=f"{len(cl)} cluster{'s' if len(cl)!=1 else ''} found")
         if not cl:
             ctk.CTkLabel(self._scroll, text="No duplicates found.",
-                font=ctk.CTkFont(family="Segoe UI", size=13),
+                font=ctk.CTkFont(family="Segoe UI",size=13),
                 text_color=DIM).pack(pady=56)
             return
-        self._batch(cl, 0)
-
-    def _batch(self, cl, start):
-        if not self.winfo_exists(): return
-        end=min(start+20, len(cl))
-        for i in range(start, end):
-            Cluster(self._scroll, cl[i], i).pack(fill="x", pady=6)
-        if end<len(cl):
-            self._scroll.after(10, lambda:self._batch(cl, end))
+        for i,c in enumerate(cl):
+            Cluster(self._scroll, c, i).pack(fill="x", pady=6)
