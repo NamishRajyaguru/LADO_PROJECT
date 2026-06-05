@@ -19,7 +19,7 @@ def archive_file(file_path, logger):
 
         # If a file with same name already exists in archive, add timestamp
         if os.path.exists(destination):
-            name, ext = os.path.splittext(filename)
+            name, ext = os.path.splitext(filename)
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
             destination = os.path.join(ARCHIVE_DIR, f"{name}_{timestamp}{ext}")
 
