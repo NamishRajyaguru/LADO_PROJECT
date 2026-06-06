@@ -4,10 +4,10 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 try: from config import LOG_DIR
 except: LOG_DIR = None
 
-BG="#07080f";SURFACE="#0e0f1a";CARD="#13141f";CARD2="#181926"
-BORDER="#1f2035";BORDER_HI="#2a2d4a"
-TEXT="#eeeef5";MUTED="#5a5b7a";DIM="#272840"
-ACCENT="#5b8dee";ACCENTG="#3ecf8e";ACCENTR="#e05c72";ACCENTY="#f0a84a"
+BG="#FFFFFF";SURFACE="#F7F7F8";CARD="#F7F7F8";CARD2="#F1F1F3"
+BORDER="#E6E6E9";BORDER_HI="#D1D1D6"
+TEXT="#000000";MUTED="#8A8F98";DIM="#C4C5C8"
+ACCENT="#000000";ACCENTG="#000000";ACCENTR="#000000";ACCENTY="#000000"
 
 _cache = None
 
@@ -41,21 +41,21 @@ def parse_level(line):
 class LogLine(ctk.CTkFrame):
     def __init__(self, parent, line, idx, **kw):
         bg = CARD if idx%2==0 else SURFACE
-        super().__init__(parent, fg_color=bg, corner_radius=0, height=24, **kw)
+        super().__init__(parent, fg_color=bg, corner_radius=12, height=36, border_width=0, **kw)
         self.pack_propagate(False)
         lvl = parse_level(line)
         clr = LEVEL_CLR.get(lvl, MUTED)
 
         # level badge
         ctk.CTkLabel(self, text=f" {lvl[:4]} ",
-            font=ctk.CTkFont(family="Segoe UI", size=8, weight="bold"),
-            text_color=BG, fg_color=clr, corner_radius=3,
-            width=36).pack(side="left", padx=(12,8), pady=4)
+            font=ctk.CTkFont(family="Segoe UI", size=10, weight="bold"),
+            text_color=BG, fg_color=clr, corner_radius=6,
+            width=48).pack(side="left", padx=(16,12), pady=6)
 
         ctk.CTkLabel(self, text=line[:160],
-            font=ctk.CTkFont(family="Courier New", size=9),
+            font=ctk.CTkFont(family="JetBrains Mono", size=11),
             text_color=TEXT if lvl=="ERROR" else MUTED,
-            anchor="w").pack(side="left", fill="x", expand=True, padx=(0,12))
+            anchor="w").pack(side="left", fill="x", expand=True, padx=(0,16))
 
 
 class LogsPanel(ctk.CTkFrame):
@@ -81,7 +81,8 @@ class LogsPanel(ctk.CTkFrame):
             font=ctk.CTkFont(family="Segoe UI", size=10), text_color=MUTED)
         self._cnt.pack(side="right")
 
-        ctk.CTkFrame(self, fg_color=BORDER, height=1).pack(fill="x", padx=36, pady=24)
+        # divider removed
+        ctk.CTkFrame(self, fg_color="transparent", height=1).pack(fill="x", padx=36, pady=16)
 
         # File picker strip
         files = get_log_files()
@@ -91,22 +92,21 @@ class LogsPanel(ctk.CTkFrame):
                 text_color=DIM).pack(pady=60)
             return
 
-        picker = ctk.CTkFrame(self, fg_color=CARD, corner_radius=10,
-                              border_color=BORDER, border_width=1)
-        picker.pack(fill="x", padx=36, pady=(0,16))
+        picker = ctk.CTkFrame(self, fg_color=CARD, corner_radius=20, border_width=0)
+        picker.pack(fill="x", padx=36, pady=(0,20))
 
         self._file_btns = {}
         for f in files:
             label = f.replace(".log","")
             is_today = f == datetime.now().strftime("%Y-%m-%d") + ".log"
             btn = ctk.CTkButton(picker, text=f"{'Today' if is_today else label}",
-                width=110, height=30,
-                font=ctk.CTkFont(family="Segoe UI", size=10),
+                width=110, height=36,
+                font=ctk.CTkFont(family="Segoe UI", size=11, weight="bold"),
                 fg_color=ACCENT if is_today else "transparent",
-                text_color=BG if is_today else MUTED,
-                hover_color=CARD2, corner_radius=8,
+                text_color="#FFFFFF" if is_today else MUTED,
+                hover_color="#2C2D31", corner_radius=10,
                 command=lambda x=f: self._select(x))
-            btn.pack(side="left", padx=5, pady=5)
+            btn.pack(side="left", padx=6, pady=6)
             self._file_btns[f] = btn
 
         # Scroll area

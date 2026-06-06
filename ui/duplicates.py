@@ -2,11 +2,11 @@ import customtkinter as ctk, sqlite3, sys, os, threading
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from config import DB_PATH
 
-BG="#07080f";SURFACE="#0e0f1a";CARD="#13141f";CARD2="#181926"
-BORDER="#1f2035";BORDER_HI="#2a2d4a"
-TEXT="#eeeef5";MUTED="#5a5b7a";DIM="#272840"
-ACCENT="#5b8dee";ACCENTG="#3ecf8e";ACCENTR="#e05c72";ACCENTY="#f0a84a"
-SK1="#13141f";SK2="#1c1d2e"
+BG="#FFFFFF";SURFACE="#F7F7F8";CARD="#F7F7F8";CARD2="#F1F1F3"
+BORDER="#E6E6E9";BORDER_HI="#D1D1D6"
+TEXT="#000000";MUTED="#8A8F98";DIM="#C4C5C8"
+ACCENT="#000000";ACCENTG="#000000";ACCENTR="#000000";ACCENTY="#000000"
+SK1="#121212";SK2="#1C1C1E"
 PAGE=20
 
 _cache=None
@@ -52,54 +52,53 @@ class SkeletonCluster(ctk.CTkFrame):
 
 class Cluster(ctk.CTkFrame):
     def __init__(self,parent,data,idx,**kw):
-        super().__init__(parent,fg_color=CARD,corner_radius=12,
-                         border_color=BORDER,border_width=1,**kw)
+        super().__init__(parent,fg_color=CARD,corner_radius=20,
+                         border_width=0,**kw)
         self._hash,self._cnt,sz=data
         self._sz=float(sz or 0)
         self._expanded=False;self._detail=None
         wasted=self._sz*(self._cnt-1)/self._cnt if self._cnt>1 else 0
-        ctk.CTkFrame(self,fg_color=ACCENTR,height=2,corner_radius=0).pack(fill="x",side="top")
         hdr=ctk.CTkFrame(self,fg_color="transparent",cursor="hand2")
-        hdr.pack(fill="x",padx=20,pady=14)
+        hdr.pack(fill="x",padx=24,pady=18)
         hdr.bind("<Button-1>",self._toggle)
         self._arrow=ctk.CTkLabel(hdr,text="›",
-            font=ctk.CTkFont(family="Segoe UI",size=16),text_color=MUTED,width=16)
+            font=ctk.CTkFont(family="Segoe UI",size=18,weight="bold"),text_color=MUTED,width=20)
         self._arrow.pack(side="left")
         self._arrow.bind("<Button-1>",self._toggle)
         ctk.CTkLabel(hdr,text=f"  Cluster {idx+1}",
-            font=ctk.CTkFont(family="Segoe UI",size=11,weight="bold"),
+            font=ctk.CTkFont(family="Segoe UI",size=12,weight="bold"),
             text_color=TEXT).pack(side="left")
         ctk.CTkLabel(hdr,text=f"  ·  {self._cnt} copies",
-            font=ctk.CTkFont(family="Segoe UI",size=10),text_color=MUTED).pack(side="left")
+            font=ctk.CTkFont(family="Segoe UI",size=11),text_color=MUTED).pack(side="left")
         ctk.CTkLabel(hdr,text=f"  ·  {self._sz:.1f} MB total",
-            font=ctk.CTkFont(family="Segoe UI",size=10),text_color=ACCENTY).pack(side="left")
-        badge=ctk.CTkFrame(hdr,fg_color=CARD2,corner_radius=6)
+            font=ctk.CTkFont(family="Segoe UI",size=11),text_color=ACCENTY).pack(side="left")
+        badge=ctk.CTkFrame(hdr,fg_color=CARD2,corner_radius=8)
         badge.pack(side="right")
         ctk.CTkLabel(badge,text=f"  ↓ {wasted:.1f} MB free  ",
-            font=ctk.CTkFont(family="Segoe UI",size=9,weight="bold"),
-            text_color=ACCENTG).pack(padx=2,pady=4)
+            font=ctk.CTkFont(family="Segoe UI",size=10,weight="bold"),
+            text_color=ACCENTG).pack(padx=6,pady=6)
         ctk.CTkLabel(hdr,text=f"{self._hash[:10]}…",
-            font=ctk.CTkFont(family="Segoe UI",size=8),
-            text_color=DIM).pack(side="right",padx=(0,10))
+            font=ctk.CTkFont(family="Segoe UI",size=9),
+            text_color=DIM).pack(side="right",padx=(0,14))
 
     def _toggle(self,e=None):
         self._expanded=not self._expanded
         self._arrow.configure(text="∨" if self._expanded else "›")
         if self._expanded:
-            self._detail=ctk.CTkFrame(self,fg_color=SURFACE,corner_radius=8)
-            self._detail.pack(fill="x",padx=14,pady=(0,14))
+            self._detail=ctk.CTkFrame(self,fg_color=SURFACE,corner_radius=10)
+            self._detail.pack(fill="x",padx=20,pady=(0,20))
             for i,(path,name,mb,mod) in enumerate(files_in(self._hash)):
                 row=ctk.CTkFrame(self._detail,fg_color="transparent")
-                row.pack(fill="x",padx=14,pady=4)
-                ctk.CTkLabel(row,text="●",font=ctk.CTkFont(size=7),
-                    text_color=ACCENTG if i==0 else MUTED,width=12).pack(side="left")
+                row.pack(fill="x",padx=16,pady=6)
+                ctk.CTkLabel(row,text="●",font=ctk.CTkFont(size=9),
+                    text_color=ACCENTG if i==0 else MUTED,width=14).pack(side="left")
                 ctk.CTkLabel(row,text=f"  {name}",
-                    font=ctk.CTkFont(family="Segoe UI",size=10,weight="bold"),
+                    font=ctk.CTkFont(family="Segoe UI",size=11,weight="bold"),
                     text_color=TEXT).pack(side="left")
                 ctk.CTkLabel(row,text=f"  {float(mb or 0):.1f} MB",
-                    font=ctk.CTkFont(family="Segoe UI",size=9),text_color=ACCENTY).pack(side="left")
+                    font=ctk.CTkFont(family="Segoe UI",size=10),text_color=ACCENTY).pack(side="left")
                 ctk.CTkLabel(row,text=f"  {path}",
-                    font=ctk.CTkFont(family="Segoe UI",size=9),text_color=DIM).pack(side="left")
+                    font=ctk.CTkFont(family="Segoe UI",size=10),text_color=DIM).pack(side="left")
         else:
             if self._detail:self._detail.destroy();self._detail=None
 
@@ -127,7 +126,8 @@ class DuplicatesPanel(ctk.CTkFrame):
             text_color=ACCENTG)
         self._stats.pack(side="right")
 
-        ctk.CTkFrame(self,fg_color=BORDER,height=1).pack(fill="x",padx=36,pady=24)
+        # divider removed
+        ctk.CTkFrame(self, fg_color="transparent", height=1).pack(fill="x", padx=36, pady=16)
 
         self._cnt=ctk.CTkLabel(self,text="",
             font=ctk.CTkFont(family="Segoe UI",size=10),text_color=MUTED)
