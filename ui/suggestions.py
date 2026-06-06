@@ -2,11 +2,11 @@ import customtkinter as ctk, sqlite3, sys, os, threading
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from config import DB_PATH
 
-BG="#07080f";SURFACE="#0e0f1a";CARD="#13141f";CARD2="#181926"
-BORDER="#1f2035";BORDER_HI="#2a2d4a"
-TEXT="#eeeef5";MUTED="#5a5b7a";DIM="#272840"
-ACCENT="#5b8dee";ACCENTG="#3ecf8e";ACCENTR="#e05c72";ACCENTY="#f0a84a"
-SK1="#13141f";SK2="#1c1d2e"
+BG="#FFFFFF";SURFACE="#F7F7F8";CARD="#F7F7F8";CARD2="#F1F1F3"
+BORDER="#E6E6E9";BORDER_HI="#D1D1D6"
+TEXT="#000000";MUTED="#8A8F98";DIM="#C4C5C8"
+ACCENT="#000000";ACCENTG="#000000";ACCENTR="#000000";ACCENTY="#000000"
+SK1="#121212";SK2="#1C1C1E"
 
 RISK_CLR={"low":ACCENTG,"medium":ACCENTY,"high":ACCENTR,"critical":"#ff3355"}
 TABS=["Pending","Approved","Rejected","All"]
@@ -74,55 +74,54 @@ class SkeletonCard(ctk.CTkFrame):
 
 class SRow(ctk.CTkFrame):
     def __init__(self,parent,data,reload_cb,**kw):
-        super().__init__(parent,fg_color=CARD,corner_radius=12,
-                         border_color=BORDER,border_width=1,**kw)
+        super().__init__(parent,fg_color=CARD,corner_radius=20,
+                         border_width=0,**kw)
         sid,fp,action,reason,conf,risk,status=data
         conf=float(conf or 0)
         rc=RISK_CLR.get((risk or "low").lower(),ACCENTY)
         fname=os.path.basename(fp) if fp else "unknown"
-        ctk.CTkFrame(self,fg_color=rc,height=2,corner_radius=0).pack(fill="x",side="top")
         body=ctk.CTkFrame(self,fg_color="transparent")
-        body.pack(fill="x",padx=20,pady=(14,0))
+        body.pack(fill="x",padx=24,pady=(20,0))
         r1=ctk.CTkFrame(body,fg_color="transparent")
         r1.pack(fill="x")
         ctk.CTkLabel(r1,text=fname,
-            font=ctk.CTkFont(family="Segoe UI",size=11,weight="bold"),
+            font=ctk.CTkFont(family="Segoe UI",size=13,weight="bold"),
             text_color=TEXT).pack(side="left")
         sc={"pending":ACCENTY,"approved":ACCENTG,"rejected":ACCENTR}.get(status,MUTED)
         ctk.CTkLabel(r1,text=f"  {status.upper()}  ",
-            font=ctk.CTkFont(family="Segoe UI",size=8,weight="bold"),
-            text_color=BG,fg_color=sc,corner_radius=4).pack(side="right",padx=(4,0))
+            font=ctk.CTkFont(family="Segoe UI",size=9,weight="bold"),
+            text_color=BG,fg_color=sc,corner_radius=6).pack(side="right",padx=(6,0))
         ctk.CTkLabel(r1,text=f"  {(risk or 'LOW').upper()}  ",
-            font=ctk.CTkFont(family="Segoe UI",size=8,weight="bold"),
-            text_color=BG,fg_color=rc,corner_radius=4).pack(side="right")
+            font=ctk.CTkFont(family="Segoe UI",size=9,weight="bold"),
+            text_color=BG,fg_color=rc,corner_radius=6).pack(side="right")
         r2=ctk.CTkFrame(body,fg_color="transparent")
-        r2.pack(fill="x",pady=(6,0))
+        r2.pack(fill="x",pady=(8,0))
         ctk.CTkLabel(r2,text=f"→  {action}",
-            font=ctk.CTkFont(family="Segoe UI",size=10),
+            font=ctk.CTkFont(family="Segoe UI",size=11,weight="bold"),
             text_color=ACCENT).pack(side="left")
         if reason:
             ctk.CTkLabel(body,text=reason,
-                font=ctk.CTkFont(family="Segoe UI",size=9),
-                text_color=MUTED,anchor="w",wraplength=700).pack(fill="x",pady=(4,0))
+                font=ctk.CTkFont(family="Segoe UI",size=11),
+                text_color=MUTED,anchor="w",wraplength=700).pack(fill="x",pady=(6,0))
         bot=ctk.CTkFrame(self,fg_color="transparent")
-        bot.pack(fill="x",padx=20,pady=(12,16))
+        bot.pack(fill="x",padx=24,pady=(16,20))
         ctk.CTkLabel(bot,text=f"{int(conf*100)}%",
-            font=ctk.CTkFont(family="Segoe UI",size=9),
-            text_color=MUTED,width=34).pack(side="left")
-        track=ctk.CTkFrame(bot,fg_color=CARD2,width=160,height=4,corner_radius=2)
-        track.pack(side="left",padx=(4,20));track.pack_propagate(False)
-        ctk.CTkFrame(track,fg_color=ACCENT,width=max(2,int(160*conf)),
-                     height=4,corner_radius=2).place(x=0,y=0)
+            font=ctk.CTkFont(family="Segoe UI",size=10,weight="bold"),
+            text_color=MUTED,width=38).pack(side="left")
+        track=ctk.CTkFrame(bot,fg_color=CARD2,width=180,height=6,corner_radius=3)
+        track.pack(side="left",padx=(6,20));track.pack_propagate(False)
+        ctk.CTkFrame(track,fg_color=ACCENT,width=max(4,int(180*conf)),
+                     height=6,corner_radius=3).place(x=0,y=0)
         if status=="pending":
-            ctk.CTkButton(bot,text="Approve",width=84,height=28,
-                font=ctk.CTkFont(family="Segoe UI",size=9),
+            ctk.CTkButton(bot,text="Approve",width=96,height=34,
+                font=ctk.CTkFont(family="Segoe UI",size=11,weight="bold"),
                 fg_color="transparent",border_color=ACCENTG,border_width=1,
-                text_color=ACCENTG,hover_color="#0a2218",corner_radius=7,
-                command=lambda:(update(sid,"approved"),self._bust(),reload_cb())).pack(side="right",padx=(6,0))
-            ctk.CTkButton(bot,text="Reject",width=76,height=28,
-                font=ctk.CTkFont(family="Segoe UI",size=9),
+                text_color=ACCENTG,hover_color="#064E3B",corner_radius=10,
+                command=lambda:(update(sid,"approved"),self._bust(),reload_cb())).pack(side="right",padx=(8,0))
+            ctk.CTkButton(bot,text="Reject",width=88,height=34,
+                font=ctk.CTkFont(family="Segoe UI",size=11,weight="bold"),
                 fg_color="transparent",border_color=ACCENTR,border_width=1,
-                text_color=ACCENTR,hover_color="#22080e",corner_radius=7,
+                text_color=ACCENTR,hover_color="#7F1D1D",corner_radius=10,
                 command=lambda:(update(sid,"rejected"),self._bust(),reload_cb())).pack(side="right")
 
     def _bust(self):
@@ -150,21 +149,21 @@ class SuggestionsPanel(ctk.CTkFrame):
             font=ctk.CTkFont(family="Segoe UI",size=11),
             text_color=MUTED).pack(anchor="w",pady=(2,0))
 
-        ctk.CTkFrame(self,fg_color=BORDER,height=1).pack(fill="x",padx=36,pady=24)
+        # divider removed
+        ctk.CTkFrame(self, fg_color="transparent", height=1).pack(fill="x", padx=36, pady=16)
 
-        tabs=ctk.CTkFrame(self,fg_color=CARD,corner_radius=10,
-                          border_color=BORDER,border_width=1)
-        tabs.pack(fill="x",padx=36,pady=(0,16))
+        tabs=ctk.CTkFrame(self,fg_color=CARD,corner_radius=24, border_width=0)
+        tabs.pack(fill="x",padx=36,pady=(0,20))
         self._tbns={}
         for t in TABS:
             active=t=="Pending"
-            b=ctk.CTkButton(tabs,text=t,width=94,height=32,
-                font=ctk.CTkFont(family="Segoe UI",size=10),
+            b=ctk.CTkButton(tabs,text=t,width=110,height=38,
+                font=ctk.CTkFont(family="Segoe UI",size=11,weight="bold"),
                 fg_color=ACCENT if active else "transparent",
-                text_color=BG if active else MUTED,
-                hover_color=CARD2,corner_radius=8,
+                text_color="#FFFFFF" if active else MUTED,
+                hover_color="#2C2D31",corner_radius=12,
                 command=lambda x=t:self._tab(x))
-            b.pack(side="left",padx=5,pady=5)
+            b.pack(side="left",padx=8,pady=8)
             self._tbns[t]=b
 
         self._cnt=ctk.CTkLabel(self,text="",

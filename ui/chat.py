@@ -7,10 +7,10 @@ except: LLM=False
 try: from config import LOG_DIR, DB_PATH
 except: LOG_DIR=None; DB_PATH=None
 
-BG="#07080f";SURFACE="#0e0f1a";CARD="#13141f";CARD2="#181926"
-BORDER="#1f2035";BORDER_HI="#2a2d4a"
-TEXT="#eeeef5";MUTED="#5a5b7a";DIM="#272840"
-ACCENT="#5b8dee";ACCENTG="#3ecf8e"
+BG="#FFFFFF";SURFACE="#F7F7F8";CARD="#F7F7F8";CARD2="#F1F1F3"
+BORDER="#E6E6E9";BORDER_HI="#D1D1D6"
+TEXT="#000000";MUTED="#8A8F98";DIM="#C4C5C8"
+ACCENT="#000000";ACCENTG="#000000"
 
 def get_logs():
     if not LOG_DIR: return "No log directory configured."
@@ -59,26 +59,25 @@ class Bubble(ctk.CTkFrame):
     def __init__(self, parent, text, role, **kw):
         super().__init__(parent, fg_color="transparent", **kw)
         is_user=role=="user"
-        bg=CARD2 if is_user else CARD
-        tc=ACCENT if is_user else TEXT
+        bg=ACCENT if is_user else CARD2
+        tc="#FFFFFF" if is_user else TEXT
         name="you" if is_user else "lado"
         side="e" if is_user else "w"
 
         wrap=ctk.CTkFrame(self, fg_color="transparent")
-        wrap.pack(anchor=side, fill="x", padx=8)
+        wrap.pack(anchor=side, fill="x", padx=12)
 
         ctk.CTkLabel(wrap, text=name,
-            font=ctk.CTkFont(family="Segoe UI", size=8),
-            text_color=DIM).pack(anchor=side, padx=16, pady=(10,0))
+            font=ctk.CTkFont(family="Segoe UI", size=10, weight="bold"),
+            text_color=DIM).pack(anchor=side, padx=20, pady=(12,0))
 
-        bub=ctk.CTkFrame(wrap, fg_color=bg, corner_radius=10,
-                         border_color=BORDER, border_width=1)
-        bub.pack(anchor=side, padx=8, pady=(3,10))
+        bub=ctk.CTkFrame(wrap, fg_color=bg, corner_radius=20, border_width=0)
+        bub.pack(anchor=side, padx=12, pady=(4,12))
 
         ctk.CTkLabel(bub, text=text,
-            font=ctk.CTkFont(family="Segoe UI", size=10),
+            font=ctk.CTkFont(family="Segoe UI", size=12),
             text_color=tc, wraplength=560,
-            justify="left", anchor="w").pack(padx=16, pady=12)
+            justify="left", anchor="w").pack(padx=20, pady=14)
 
 
 class ChatPanel(ctk.CTkFrame):
@@ -110,30 +109,30 @@ class ChatPanel(ctk.CTkFrame):
             text_color=MUTED, hover_color=CARD2, corner_radius=7,
             command=self._clear).pack(side="right")
 
-        ctk.CTkFrame(self, fg_color=BORDER, height=1).pack(fill="x", padx=36, pady=24)
+        # divider removed
+        ctk.CTkFrame(self, fg_color="transparent", height=1).pack(fill="x", padx=36, pady=16)
 
-        self._scroll=ctk.CTkScrollableFrame(self, fg_color=SURFACE, corner_radius=12)
-        self._scroll.pack(fill="both", expand=True, padx=36, pady=(0,14))
+        self._scroll=ctk.CTkScrollableFrame(self, fg_color=SURFACE, corner_radius=20, border_width=0)
+        self._scroll.pack(fill="both", expand=True, padx=36, pady=(0,16))
 
         Bubble(self._scroll,
             "Hey! I'm LADO. Ask me anything — your files, duplicates, storage, or just say hi.",
             "assistant").pack(fill="x")
 
         # Input row
-        inp=ctk.CTkFrame(self, fg_color=CARD, corner_radius=12,
-                         border_color=BORDER, border_width=1)
-        inp.pack(fill="x", padx=36, pady=(0,28))
+        inp=ctk.CTkFrame(self, fg_color=CARD, corner_radius=24, border_width=0)
+        inp.pack(fill="x", padx=36, pady=(0,32))
 
         self._inp=ctk.CTkEntry(inp, placeholder_text="Ask LADO anything…",
-            font=ctk.CTkFont(family="Segoe UI", size=10), height=40,
+            font=ctk.CTkFont(family="Segoe UI", size=12), height=48,
             fg_color="transparent", border_width=0, text_color=TEXT)
-        self._inp.pack(side="left", fill="x", expand=True, padx=14, pady=10)
+        self._inp.pack(side="left", fill="x", expand=True, padx=20, pady=6)
         self._inp.bind("<Return>", lambda e:self._send())
 
-        self._sbtn=ctk.CTkButton(inp, text="Send", width=72, height=32,
-            font=ctk.CTkFont(family="Segoe UI", size=10),
-            fg_color=ACCENT, text_color=BG, hover_color="#7aa5f5",
-            corner_radius=8, command=self._send)
+        self._sbtn=ctk.CTkButton(inp, text="Send", width=80, height=36,
+            font=ctk.CTkFont(family="Segoe UI", size=12, weight="bold"),
+            fg_color=ACCENT, text_color=BG, hover_color="#2563EB",
+            corner_radius=14, command=self._send)
         self._sbtn.pack(side="right", padx=10)
 
     def _send(self):

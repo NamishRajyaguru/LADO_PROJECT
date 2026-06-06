@@ -1,22 +1,28 @@
-# LADO Design Tokens — Luxury Minimal Dark
-BG_BASE       = "#050508"
-BG_SURFACE    = "#0c0c12"
-BG_ELEVATED   = "#121219"
-BG_HOVER      = "#1a1a24"
+# LADO Design Tokens — Minimal Monochrome
+SB_BG         = "#0F0F10"
+SB_TEXT       = "#FFFFFF"
+SB_MUTED      = "#8A8F98"
+SB_ACTIVE     = "#2C2D31"
 
-BORDER        = "#1e1e2e"
-BORDER_ACTIVE = "#2e2e48"
+BG            = "#FFFFFF"
+SURFACE       = "#F7F7F8"
+CARD          = "#F7F7F8"
+CARD2         = "#F1F1F3"
 
-TEXT_PRIMARY   = "#f0f0f8"
-TEXT_SECONDARY = "#6b6b8a"
-TEXT_MUTED     = "#2e2e48"
+BORDER        = "#E6E6E9"
+BORDER_HI     = "#D1D1D6"
 
-ACCENT_BLUE   = "#4d9de0"
-ACCENT_GREEN  = "#3ddc84"
-ACCENT_AMBER  = "#f5a623"
-ACCENT_RED    = "#e05c5c"
-ACCENT_PURPLE = "#9b72cf"
+TEXT          = "#000000"
+MUTED         = "#8A8F98"
+DIM           = "#C4C5C8"
+
+ACCENT        = "#000000" 
+ACCENT_BLUE   = "#000000"
+ACCENT_GREEN  = "#000000"
+ACCENT_AMBER  = "#000000"
+ACCENT_RED    = "#000000"
+ACCENT_PURPLE = "#000000"
 
 FONT_MONO  = "JetBrains Mono"
 FONT_SANS  = "Segoe UI"
-FONT_SIZES = {"xs": 9, "sm": 10, "md": 11, "lg": 13, "xl": 16, "xxl": 22}
+FONT_SIZES = {"xs": 10, "sm": 11, "md": 12, "lg": 14, "xl": 18, "xxl": 24}

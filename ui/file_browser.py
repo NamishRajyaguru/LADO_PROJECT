@@ -2,11 +2,11 @@ import customtkinter as ctk, sqlite3, sys, os, threading
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from config import DB_PATH
 
-BG="#07080f";SURFACE="#0e0f1a";CARD="#13141f";CARD2="#181926"
-BORDER="#1f2035";BORDER_HI="#2a2d4a"
-TEXT="#eeeef5";MUTED="#5a5b7a";DIM="#272840"
-ACCENT="#5b8dee";ACCENTY="#f0a84a"
-SK1="#13141f";SK2="#1c1d2e"
+BG="#FFFFFF";SURFACE="#F7F7F8";CARD="#F7F7F8";CARD2="#F1F1F3"
+BORDER="#E6E6E9";BORDER_HI="#D1D1D6"
+TEXT="#000000";MUTED="#8A8F98";DIM="#C4C5C8"
+ACCENT="#000000";ACCENTY="#000000"
+SK1="#121212";SK2="#1C1C1E"
 PAGE=20
 
 COLS=["Name","Type","Size","Modified","Path"]
@@ -81,39 +81,39 @@ class FileBrowserPanel(ctk.CTkFrame):
             font=ctk.CTkFont(family="Segoe UI",size=10),text_color=MUTED)
         self._cnt.pack(side="right")
 
-        ctk.CTkFrame(self,fg_color=BORDER,height=1).pack(fill="x",padx=36,pady=24)
+        # divider removed
+        ctk.CTkFrame(self, fg_color="transparent", height=1).pack(fill="x", padx=36, pady=16)
 
-        fb=ctk.CTkFrame(self,fg_color=CARD,corner_radius=12,
-                        border_color=BORDER,border_width=1)
-        fb.pack(fill="x",padx=36,pady=(0,16))
+        fb=ctk.CTkFrame(self,fg_color=CARD,corner_radius=20,border_width=0)
+        fb.pack(fill="x",padx=36,pady=(0,24))
         self._sv=ctk.StringVar()
         ctk.CTkEntry(fb,textvariable=self._sv,placeholder_text="Search by filename…",
-            width=220,height=34,font=ctk.CTkFont(family="Segoe UI",size=10),
-            fg_color=CARD2,border_color=BORDER_HI,border_width=1,
-            text_color=TEXT,corner_radius=8).pack(side="left",padx=14,pady=12)
+            width=240,height=44,font=ctk.CTkFont(family="Segoe UI",size=12),
+            fg_color=CARD2,border_width=0,
+            text_color=TEXT,corner_radius=12).pack(side="left",padx=16,pady=16)
         self._ev=ctk.StringVar(value="All")
         ctk.CTkOptionMenu(fb,variable=self._ev,values=get_exts(),
-            width=110,height=34,font=ctk.CTkFont(family="Segoe UI",size=10),
-            fg_color=CARD2,button_color=BORDER_HI,button_hover_color=CARD2,
+            width=120,height=44,font=ctk.CTkFont(family="Segoe UI",size=12),
+            fg_color=CARD2,button_color=CARD2,button_hover_color=CARD2,
             dropdown_fg_color=CARD,text_color=MUTED,
-            corner_radius=8).pack(side="left",padx=(0,10))
+            corner_radius=12).pack(side="left",padx=(0,12))
         self._mv=ctk.StringVar()
         ctk.CTkEntry(fb,textvariable=self._mv,placeholder_text="Min MB",
-            width=88,height=34,font=ctk.CTkFont(family="Segoe UI",size=10),
-            fg_color=CARD2,border_color=BORDER_HI,border_width=1,
-            text_color=TEXT,corner_radius=8).pack(side="left",padx=(0,12))
-        ctk.CTkButton(fb,text="Search",width=80,height=34,
-            font=ctk.CTkFont(family="Segoe UI",size=10),
-            fg_color=ACCENT,text_color=BG,hover_color="#7aa5f5",
-            corner_radius=8,command=self._apply).pack(side="left")
+            width=90,height=44,font=ctk.CTkFont(family="Segoe UI",size=12),
+            fg_color=CARD2,border_width=0,
+            text_color=TEXT,corner_radius=12).pack(side="left",padx=(0,16))
+        ctk.CTkButton(fb,text="Search",width=100,height=44,
+            font=ctk.CTkFont(family="Segoe UI",size=12,weight="bold"),
+            fg_color=ACCENT,text_color="#FFFFFF",hover_color="#2C2D31",
+            corner_radius=12,command=self._apply).pack(side="left")
 
-        ch=ctk.CTkFrame(self,fg_color=SURFACE,corner_radius=0,height=32)
+        ch=ctk.CTkFrame(self,fg_color=SURFACE,corner_radius=12,height=40)
         ch.pack(fill="x",padx=36);ch.pack_propagate(False)
         for i,(col,w) in enumerate(zip(COLS,WIDTHS)):
-            ctk.CTkLabel(ch,text=col,
-                font=ctk.CTkFont(family="Segoe UI",size=9,weight="bold"),
+            ctk.CTkLabel(ch,text=col.upper(),
+                font=ctk.CTkFont(family="Segoe UI",size=10,weight="bold"),
                 text_color=DIM,width=w,anchor="w").pack(
-                side="left",padx=(18 if i==0 else 8,0))
+                side="left",padx=(18 if i==0 else 8,0),pady=8)
 
         self._scroll=ctk.CTkScrollableFrame(self,fg_color="transparent",corner_radius=0)
         self._scroll.pack(fill="both",expand=True,padx=36,pady=(0,8))
@@ -161,8 +161,8 @@ class FileBrowserPanel(ctk.CTkFrame):
         for i in range(start,end):
             r=self._all_rows[i]
             bg=CARD if i%2==0 else SURFACE
-            row=ctk.CTkFrame(self._scroll,fg_color=bg,corner_radius=0,height=28)
-            row.pack(fill="x");row.pack_propagate(False)
+            row=ctk.CTkFrame(self._scroll,fg_color=bg,corner_radius=10,height=32,border_width=0)
+            row.pack(fill="x", pady=2);row.pack_propagate(False)
             vals=[str(r[0])[:38],f".{r[1]}" if r[1] else "",
                   f"{float(r[2] or 0):.1f} MB",str(r[3] or "")[:16],str(r[4])]
             colors=[TEXT,ACCENT,ACCENTY,MUTED,DIM]
