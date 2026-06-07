@@ -3,6 +3,7 @@ from datetime import datetime
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from config import DB_PATH
 import ui._state as S
+from ui.watcher import register_callback, unregister_callback
 
 BG="#FFFFFF";SURFACE="#F7F7F8";CARD="#F7F7F8";CARD2="#F1F1F3"
 BORDER="#E6E6E9";BORDER_HI="#D1D1D6"
@@ -56,6 +57,19 @@ class DashboardPanel(ctk.CTkFrame):
         self._success_fired=False
         self._build()
         self._sync_state()
+        # register for watcher auto-refresh
+        register_callback(self._on_watcher_event)
+
+    def _on_watcher_event(self):
+        """Called by watcher when files change — refresh stats."""
+        self.after(0, lambda: threading.Thread(
+            target=self._bg_stats, daemon=True).start())
+        self.after(0, lambda: self._console_write(
+            f"\n[{datetime.now().strftime('%H:%M:%S')}] File change detected — stats refreshed.\n"))
+
+    def destroy(self):
+        unregister_callback(self._on_watcher_event)
+        super().destroy()
 
     def _build(self):
         hdr=ctk.CTkFrame(self, fg_color="transparent")
@@ -113,7 +127,8 @@ class DashboardPanel(ctk.CTkFrame):
         ctk.CTkLabel(lft, text="LAST SCAN",
             font=ctk.CTkFont(family="Segoe UI", size=11, weight="bold"),
             text_color=MUTED).pack(anchor="w")
-        self._scan_lbl=ctk.CTkLabel(lft, text="—",
+        self._scan_lbl=ctk.CTkLabel(lft,
+            text=S.last_scan_time if S.last_scan_time else "—",
             font=ctk.CTkFont(family="Segoe UI", size=18, weight="bold"),
             text_color=TEXT)
         self._scan_lbl.pack(anchor="w", pady=(4,0))
@@ -156,8 +171,10 @@ class DashboardPanel(ctk.CTkFrame):
             self._console_write("".join(S.scan_log))
         else:
             self._console_write("Ready. Press 'Run Scan' to start.")
-        if S.last_scan_time:                              
-            self._scan_lbl.configure(text=S.last_scan_time) 
+        if S.last_scan_time:
+            self._scan_lbl.configure(text=S.last_scan_time)
+            self._pill_dot.configure(fg_color=ACCENTG)
+            self._pill_lbl.configure(text="Up to date", text_color=ACCENTG)
         threading.Thread(target=self._bg_stats, daemon=True).start()
         if S.scan_active:
             self._set_scanning_ui()
@@ -233,11 +250,10 @@ class DashboardPanel(ctk.CTkFrame):
                 if not S.scan_active: break
                 S.scan_log.append(line)
                 self.after(0, lambda l=line: self._console_write(l))
-                # ← KEY FIX: detect success line-by-line, don't wait for process exit
                 if "LADO run complete" in line and not self._success_fired:
                     self._success_fired=True
                     self.after(0, self._scan_ok)
-                    return   # stop reading — we're done, don't wait for Unicode crash
+                    return
         except Exception as e:
             if S.scan_active and not self._success_fired:
                 self.after(0, lambda: self._scan_err(str(e)))

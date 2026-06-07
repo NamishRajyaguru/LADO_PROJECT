@@ -7,10 +7,77 @@ except: LLM=False
 try: from config import LOG_DIR, DB_PATH
 except: LOG_DIR=None; DB_PATH=None
 
+# ── Backend action imports ────────────────────────────────────────
+try:
+    from core.action_engine import execute_approved_suggestions
+    from core.logger import setup_logger
+    ACTIONS_AVAILABLE = True
+except:
+    ACTIONS_AVAILABLE = False
+
+try:
+    from core.scanner import scan_files
+    from core.database import init_db
+    from core.policy_engine import run_policy_engine
+    SCAN_AVAILABLE = True
+except:
+    SCAN_AVAILABLE = False
+
 BG="#FFFFFF";SURFACE="#F7F7F8";CARD="#F7F7F8";CARD2="#F1F1F3"
 BORDER="#E6E6E9";BORDER_HI="#D1D1D6"
 TEXT="#000000";MUTED="#8A8F98";DIM="#C4C5C8"
-ACCENT="#000000";ACCENTG="#000000"
+ACCENT="#000000";ACCENTG="#16A34A"
+
+# ── Keyword action detection ──────────────────────────────────────
+ACTION_KEYWORDS = {
+    "scan": ["run a scan", "scan my files", "start scan", "rescan", "run scan"],
+    "approve": ["approve all", "approve duplicates", "execute suggestions",
+                "archive duplicates", "clean duplicates", "approve all suggestions"],
+    "quarantine": ["quarantine", "quarantine large files", "quarantine files"],
+}
+
+def detect_action(msg: str):
+    """Returns action name if message matches a command, else None."""
+    msg_lower = msg.lower().strip()
+    for action, phrases in ACTION_KEYWORDS.items():
+        for phrase in phrases:
+            if phrase in msg_lower:
+                return action
+    return None
+
+def execute_action(action: str):
+    """
+    Runs the action and returns a plain-English result string
+    to pass to the LLM as context.
+    """
+    if action == "scan":
+        if not SCAN_AVAILABLE:
+            return "ACTION_RESULT: Scan backend not available."
+        try:
+            logger = setup_logger()
+            conn = init_db(logger)
+            scan_files(conn, logger)
+            run_policy_engine(conn, logger)
+            conn.close()
+            return "ACTION_RESULT: Scan completed successfully. Files have been re-indexed and new suggestions generated."
+        except Exception as e:
+            return f"ACTION_RESULT: Scan failed with error: {e}"
+
+    elif action == "approve":
+        if not ACTIONS_AVAILABLE:
+            return "ACTION_RESULT: Action engine not available."
+        try:
+            logger = setup_logger()
+            execute_approved_suggestions(logger)
+            return "ACTION_RESULT: All approved suggestions have been executed. Files were moved/archived as instructed."
+        except Exception as e:
+            return f"ACTION_RESULT: Action execution failed: {e}"
+
+    elif action == "quarantine":
+        return "ACTION_RESULT: Quarantine is not yet implemented in the backend. Tell the user it's coming in Phase 5."
+
+    return "ACTION_RESULT: Unknown action."
+
 
 def get_logs():
     if not LOG_DIR: return "No log directory configured."
@@ -34,20 +101,22 @@ def get_db_summary():
         return f"Total: {total} files | {size} GB | {hf-uh} duplicates | {pending} pending\nTypes: {ext_breakdown}\nLargest:\n{big}"
     except Exception as e: return f"DB unavailable: {e}"
 
-def query(msg):
+def query(msg, action_result=None):
     if not LLM: return "LLM not connected — add your Groq API key to config.py."
     try:
+        action_ctx = f"\n\nACTION JUST TAKEN:\n{action_result}" if action_result else ""
         prompt=f"""You are LADO, a smart personal AI assistant built into a file management app.
-You are friendly, helpful, and conversational — talk about anything from greetings to deep questions.
+You are friendly, helpful, and conversational.
 You have full knowledge of the user's file system below.
 
 FILE SYSTEM:
 {get_db_summary()}
 
 RECENT LOG:
-{get_logs()}
+{get_logs()}{action_ctx}
 
 Respond naturally. For casual messages be friendly. For file questions use the data above.
+If an ACTION JUST TAKEN is provided, confirm what was done in plain English.
 Never say you cannot access files — you have the data.
 
 User: {msg}"""
@@ -63,21 +132,28 @@ class Bubble(ctk.CTkFrame):
         tc="#FFFFFF" if is_user else TEXT
         name="you" if is_user else "lado"
         side="e" if is_user else "w"
-
         wrap=ctk.CTkFrame(self, fg_color="transparent")
         wrap.pack(anchor=side, fill="x", padx=12)
-
         ctk.CTkLabel(wrap, text=name,
             font=ctk.CTkFont(family="Segoe UI", size=10, weight="bold"),
             text_color=DIM).pack(anchor=side, padx=20, pady=(12,0))
-
         bub=ctk.CTkFrame(wrap, fg_color=bg, corner_radius=20, border_width=0)
         bub.pack(anchor=side, padx=12, pady=(4,12))
-
         ctk.CTkLabel(bub, text=text,
             font=ctk.CTkFont(family="Segoe UI", size=12),
             text_color=tc, wraplength=560,
             justify="left", anchor="w").pack(padx=20, pady=14)
+
+
+class ActionBubble(ctk.CTkFrame):
+    """Small system message showing an action was triggered."""
+    def __init__(self, parent, text, **kw):
+        super().__init__(parent, fg_color="transparent", **kw)
+        pill=ctk.CTkFrame(self, fg_color="#F0FDF4", corner_radius=12)
+        pill.pack(anchor="w", padx=32, pady=(4,4))
+        ctk.CTkLabel(pill, text=f"⚡ {text}",
+            font=ctk.CTkFont(family="Segoe UI", size=10, weight="bold"),
+            text_color=ACCENTG).pack(padx=16, pady=8)
 
 
 class ChatPanel(ctk.CTkFrame):
@@ -93,7 +169,7 @@ class ChatPanel(ctk.CTkFrame):
         ctk.CTkLabel(left, text="Chat",
             font=ctk.CTkFont(family="Segoe UI", size=22, weight="bold"),
             text_color=TEXT).pack(anchor="w")
-        ctk.CTkLabel(left, text="Ask LADO anything about your files or anything else",
+        ctk.CTkLabel(left, text="Ask LADO anything — or give it a command",
             font=ctk.CTkFont(family="Segoe UI", size=11),
             text_color=MUTED).pack(anchor="w", pady=(2,0))
 
@@ -109,21 +185,27 @@ class ChatPanel(ctk.CTkFrame):
             text_color=MUTED, hover_color=CARD2, corner_radius=7,
             command=self._clear).pack(side="right")
 
-        # divider removed
         ctk.CTkFrame(self, fg_color="transparent", height=1).pack(fill="x", padx=36, pady=16)
 
         self._scroll=ctk.CTkScrollableFrame(self, fg_color=SURFACE, corner_radius=20, border_width=0)
         self._scroll.pack(fill="both", expand=True, padx=36, pady=(0,16))
 
         Bubble(self._scroll,
-            "Hey! I'm LADO. Ask me anything — your files, duplicates, storage, or just say hi.",
+            "Hey! I'm LADO. Ask me anything, or try commands like 'run a scan' or 'approve all duplicates'.",
             "assistant").pack(fill="x")
 
-        # Input row
+        # Hint strip
+        hint=ctk.CTkFrame(self, fg_color=CARD, corner_radius=12, border_width=0)
+        hint.pack(fill="x", padx=36, pady=(0,8))
+        ctk.CTkLabel(hint,
+            text="Commands: 'run a scan'  ·  'approve all duplicates'  ·  'approve all suggestions'",
+            font=ctk.CTkFont(family="Segoe UI", size=9),
+            text_color=DIM).pack(padx=16, pady=8)
+
         inp=ctk.CTkFrame(self, fg_color=CARD, corner_radius=24, border_width=0)
         inp.pack(fill="x", padx=36, pady=(0,32))
 
-        self._inp=ctk.CTkEntry(inp, placeholder_text="Ask LADO anything…",
+        self._inp=ctk.CTkEntry(inp, placeholder_text="Ask LADO anything or give a command…",
             font=ctk.CTkFont(family="Segoe UI", size=12), height=48,
             fg_color="transparent", border_width=0, text_color=TEXT)
         self._inp.pack(side="left", fill="x", expand=True, padx=20, pady=6)
@@ -142,15 +224,38 @@ class ChatPanel(ctk.CTkFrame):
         self._sbtn.configure(state="disabled", text="…")
         Bubble(self._scroll, msg, "user").pack(fill="x")
         self._scroll._parent_canvas.yview_moveto(1.0)
-        thinking=ctk.CTkLabel(self._scroll, text="thinking…",
+
+        # detect action BEFORE sending to LLM
+        action=detect_action(msg)
+
+        thinking=ctk.CTkLabel(self._scroll,
+            text="executing…" if action else "thinking…",
             font=ctk.CTkFont(family="Segoe UI", size=9), text_color=DIM)
         thinking.pack(anchor="w", padx=24, pady=4)
         self._scroll._parent_canvas.yview_moveto(1.0)
-        threading.Thread(target=lambda:self._work(msg, thinking), daemon=True).start()
 
-    def _work(self, msg, thinking):
-        r=query(msg)
-        self.after(0, lambda:self._reply(r, thinking))
+        threading.Thread(
+            target=lambda: self._work(msg, action, thinking),
+            daemon=True
+        ).start()
+
+    def _work(self, msg, action, thinking):
+        action_result = None
+        if action:
+            # run the real action in background
+            action_result = execute_action(action)
+            # show action confirmation bubble on main thread
+            friendly = {
+                "scan": "Running a full scan…",
+                "approve": "Executing approved suggestions…",
+                "quarantine": "Quarantine not yet available.",
+            }.get(action, "Running action…")
+            self.after(0, lambda: ActionBubble(
+                self._scroll, friendly).pack(fill="x"))
+
+        # then ask LLM to respond naturally
+        r = query(msg, action_result)
+        self.after(0, lambda: self._reply(r, thinking))
 
     def _reply(self, text, thinking):
         thinking.destroy()
