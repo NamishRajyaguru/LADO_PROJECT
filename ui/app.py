@@ -8,30 +8,14 @@ from ui.duplicates   import DuplicatesPanel
 from ui.file_browser import FileBrowserPanel
 from ui.chat         import ChatPanel
 from ui.logs         import LogsPanel
+from ui.watcher      import start_watcher, stop_watcher
 
 ctk.set_appearance_mode("light")
 ctk.set_default_color_theme("blue")
 
-# ── Minimal Monochrome Palette ─────────────────────────────
-SB_BG     = "#0F0F10"
-SB_TEXT   = "#FFFFFF"
-SB_MUTED  = "#8A8F98"
-SB_ACTIVE = "#2C2D31"
-
-BG        = "#FFFFFF"
-SURFACE   = "#F7F7F8"
-CARD      = "#F7F7F8"
-CARD2     = "#F1F1F3"
-BORDER    = "#E6E6E9"
-BORDER_HI = "#D1D1D6"
-TEXT      = "#000000"
-MUTED     = "#8A8F98"
-DIM       = "#C4C5C8"
-ACCENT    = "#000000"
-ACCENTG   = "#000000"
-ACCENTR   = "#000000"
-ACCENTY   = "#000000"
-ACCENTP   = "#000000"
+SB_BG="#0F0F10";SB_TEXT="#FFFFFF";SB_MUTED="#8A8F98";SB_ACTIVE="#2C2D31"
+BG="#FFFFFF";CARD="#F7F7F8";CARD2="#F1F1F3"
+TEXT="#000000";MUTED="#8A8F98";DIM="#C4C5C8"
 
 NAV = [
     ("Dashboard",   "○", DashboardPanel),
@@ -51,18 +35,10 @@ class NavBtn(ctk.CTkButton):
             anchor="w", command=command)
 
     def activate(self):
-        self.configure(
-            fg_color=SB_ACTIVE,
-            text_color=SB_TEXT,
-            border_width=0,
-        )
+        self.configure(fg_color=SB_ACTIVE, text_color=SB_TEXT, border_width=0)
 
     def deactivate(self):
-        self.configure(
-            fg_color="transparent",
-            text_color=SB_MUTED,
-            border_width=0,
-        )
+        self.configure(fg_color="transparent", text_color=SB_MUTED, border_width=0)
 
 
 class LADOApp(ctk.CTk):
@@ -72,63 +48,68 @@ class LADOApp(ctk.CTk):
         self.geometry("1360x820")
         self.minsize(1000, 640)
         self.configure(fg_color=BG)
-        self._active_btn = None
+        self._active_btn=None
         self._build()
+        # start real-time file watcher
+        start_watcher()
+        self.protocol("WM_DELETE_WINDOW", self._on_close)
+
+    def _on_close(self):
+        stop_watcher()
+        self.destroy()
 
     def _build(self):
-        # ── Sidebar ───────────────────────────────────────────
-        sb = ctk.CTkFrame(self, fg_color=SB_BG, width=240, corner_radius=0)
+        sb=ctk.CTkFrame(self, fg_color=SB_BG, width=240, corner_radius=0)
         sb.pack(side="left", fill="y")
         sb.pack_propagate(False)
 
-        inner = ctk.CTkFrame(sb, fg_color="transparent")
+        inner=ctk.CTkFrame(sb, fg_color="transparent")
         inner.pack(fill="both", expand=True, padx=20, pady=32)
 
-        # Logo / Brand
-        logo_row = ctk.CTkFrame(inner, fg_color="transparent")
-        logo_row.pack(fill="x", padx=16, pady=(0, 32))
-        
+        logo_row=ctk.CTkFrame(inner, fg_color="transparent")
+        logo_row.pack(fill="x", padx=16, pady=(0,4))
         ctk.CTkLabel(logo_row, text="●",
-            font=ctk.CTkFont(size=20),
-            text_color=SB_TEXT).pack(side="left")
-        
+            font=ctk.CTkFont(size=20), text_color=SB_TEXT).pack(side="left")
         ctk.CTkLabel(logo_row, text="  LADO",
             font=ctk.CTkFont(family="Segoe UI", size=22, weight="bold"),
             text_color=SB_TEXT).pack(side="left")
 
         ctk.CTkLabel(inner, text="Local AI Data Organizer",
-            font=ctk.CTkFont(family="Segoe UI", size=11, weight="normal"),
-            text_color=SB_MUTED).pack(anchor="w", padx=20, pady=(4, 0))
+            font=ctk.CTkFont(family="Segoe UI", size=11),
+            text_color=SB_MUTED).pack(anchor="w", padx=20, pady=(0,0))
 
-        # divider removed for smoothness
+        # Watcher status
+        from ui.watcher import WATCHDOG_AVAILABLE
+        watcher_color = "#16A34A" if WATCHDOG_AVAILABLE else "#D97706"
+        watcher_text = "● Watching files" if WATCHDOG_AVAILABLE else "● Install watchdog"
+        ctk.CTkLabel(inner, text=watcher_text,
+            font=ctk.CTkFont(family="Segoe UI", size=9),
+            text_color=watcher_color).pack(anchor="w", padx=20, pady=(4,0))
 
         ctk.CTkLabel(inner, text="NAVIGATE",
             font=ctk.CTkFont(family="Segoe UI", size=10, weight="bold"),
-            text_color=SB_MUTED).pack(anchor="w", padx=22, pady=(32, 12))
+            text_color=SB_MUTED).pack(anchor="w", padx=22, pady=(32,12))
 
-        self._btns = {}
-        for label, icon, cls in NAV:
-            b = NavBtn(inner, icon, label,
-                       lambda l=label, c=cls: self._switch(l, c))
+        self._btns={}
+        for label,icon,cls in NAV:
+            b=NavBtn(inner, icon, label,
+                     lambda l=label, c=cls: self._switch(l, c))
             b.pack(fill="x", padx=12, pady=2)
-            self._btns[label] = b
+            self._btns[label]=b
 
-        # bottom version tag
         ctk.CTkLabel(inner, text="v0.1  ·  Phase 1–3",
             font=ctk.CTkFont(family="Segoe UI", size=9),
-            text_color=DIM).pack(side="bottom", pady=(0, 16))
+            text_color=DIM).pack(side="bottom", pady=(0,16))
 
-        # ── Content ───────────────────────────────────────────
-        self.content = ctk.CTkFrame(self, fg_color=BG, corner_radius=0)
+        self.content=ctk.CTkFrame(self, fg_color=BG, corner_radius=0)
         self.content.pack(side="right", fill="both", expand=True)
-
         self._switch("Dashboard", DashboardPanel)
 
     def _switch(self, label, cls):
         if self._active_btn:
             self._active_btn.deactivate()
         self._btns[label].activate()
-        self._active_btn = self._btns[label]
+        self._active_btn=self._btns[label]
         for w in self.content.winfo_children():
             w.destroy()
         cls(self.content).pack(fill="both", expand=True)
