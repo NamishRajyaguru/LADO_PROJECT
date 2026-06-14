@@ -9,41 +9,61 @@ from datetime import datetime
 RULES = [
     {
         "id":         "large_file",
-        "condition":  lambda f: f["size_mb"] > LARGE_FILE_MB,
+        "condition":  lambda f: (
+            f["size_mb"] > 500
+            and f["extension"] not in [".exe", ".dll", ".sys", ".iso", ".msi"]
+        ),
         "action":     "suggest_archive",
-        "reason":     f"File is over {LARGE_FILE_MB}MB — consider archiving",
+        "reason":     "File is over 500MB and not a system file — consider archiving",
         "confidence": 0.75,
         "risk":       "low",
     },
     {
         "id":         "unused_file",
-        "condition":  lambda f: f["days_since_modified"] > UNUSED_DAYS,
+        "condition":  lambda f: (
+            f["days_since_modified"] > 180
+            and f["size_mb"] > 50
+            and f["extension"] not in [
+                ".dll", ".exe", ".sys", ".ini", ".dat",
+                ".cfg", ".log", ".db", ".sqlite", ".pyc"
+            ]
+        ),
         "action":     "suggest_archive",
-        "reason":     f"File unused for {UNUSED_DAYS}+ days",
+        "reason":     "Large file unused for 6+ months — likely safe to archive",
         "confidence": 0.70,
         "risk":       "low",
     },
     {
         "id":         "duplicate_file",
-        "condition":  lambda f: f["is_duplicate"] is True,
+        "condition":  lambda f: (
+            f["is_duplicate"] is True
+            and f["size_mb"] > 10
+        ),
         "action":     "suggest_cleanup",
-        "reason":     "Identical copy exists elsewhere on disk",
+        "reason":     "Identical copy exists elsewhere — over 10MB wasted",
         "confidence": 0.95,
         "risk":       "medium",
     },
     {
         "id":         "large_unused",
-        "condition":  lambda f: f["size_mb"] > LARGE_UNUSED_MB and f["days_since_modified"] > LARGE_UNUSED_DAYS,
+        "condition":  lambda f: (
+            f["size_mb"] > 200
+            and f["days_since_modified"] > 90
+            and f["extension"] not in [".dll", ".exe", ".sys", ".iso"]
+        ),
         "action":     "suggest_archive",
-        "reason":     "Large file unused for 3+ months",
+        "reason":     "Large file sitting unused for 3+ months",
         "confidence": 0.85,
         "risk":       "low",
     },
     {
         "id":         "temp_file",
-        "condition":  lambda f: f["extension"] in TEMP_EXTENSIONS,
+        "condition":  lambda f: (
+            f["extension"] in [".tmp", ".temp"]
+            and f["size_mb"] > 1
+        ),
         "action":     "suggest_delete",
-        "reason":     "Temporary file — likely safe to remove",
+        "reason":     "Temporary file over 1MB — likely safe to remove",
         "confidence": 0.80,
         "risk":       "low",
     },

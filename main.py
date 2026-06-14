@@ -25,10 +25,10 @@ def run_lado():
     find_duplicates(logger)
 
     # ── 5. Run policy engine ───────────────────────────────────
+    execute_approved_suggestions(logger)
     run_policy_engine(logger)
 
     # ── 6. Print summary ───────────────────────────────────────
-    execute_approved_suggestions(logger)
     summary = get_summary()
     logger.info("=" * 50)
     logger.info("LADO run complete")
