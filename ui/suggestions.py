@@ -149,10 +149,14 @@ class SRow(ctk.CTkFrame):
                 command=lambda: (update(sid,"rejected"), self._bust(), reload_cb())).pack(side="right")
 
     def _approve(self, sid, reload_cb):
-        # 1. update DB status
+        # 1. update DB status to approved
         update(sid, "approved")
-        # 2. execute the action physically via backend
-        threading.Thread(target=run_action_engine, daemon=True).start()
+        # 2. execute the action physically RIGHT NOW
+        if ACTION_ENGINE:
+            try:
+                execute_approved_suggestions(setup_logger())
+            except Exception as e:
+                print(f"[Action Engine] {e}")
         # 3. bust cache and reload UI
         self._bust()
         reload_cb()
