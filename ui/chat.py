@@ -16,9 +16,7 @@ except:
     ACTIONS_AVAILABLE = False
 
 try:
-    from core.scanner import scan_files
-    from core.database import init_db
-    from core.policy_engine import run_policy_engine
+    from core.agent import run_full_cycle
     SCAN_AVAILABLE = True
 except:
     SCAN_AVAILABLE = False

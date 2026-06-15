@@ -19,10 +19,7 @@ except:
     DB_PATH = None
 
 try:
-    from core.scanner import scan_files
-    from core.database import init_db
-    from core.policy_engine import run_policy_engine
-    from core.logger import setup_logger
+    from core.agent import run_full_cycle
     BACKEND_AVAILABLE = True
 except:
     BACKEND_AVAILABLE = False
@@ -71,11 +68,7 @@ class LADOEventHandler(FileSystemEventHandler):
     def _run_scan(self):
         if not BACKEND_AVAILABLE: return
         try:
-            logger = setup_logger()
-            conn = init_db(logger)
-            scan_files(conn, logger)
-            run_policy_engine(conn, logger)
-            conn.close()
+            run_full_cycle()
             _notify_all()
         except Exception as e:
             print(f"[Watcher] Scan error: {e}")
