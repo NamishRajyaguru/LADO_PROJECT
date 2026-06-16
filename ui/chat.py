@@ -27,9 +27,11 @@ TEXT="#000000";MUTED="#8A8F98";DIM="#C4C5C8"
 ACCENT="#000000";ACCENTG="#16A34A"
 
 ACTION_KEYWORDS = {
-    "scan": ["run a scan","scan my files","start scan","rescan","run scan"],
-    "approve": ["approve all","approve duplicates","execute suggestions",
-                "archive duplicates","clean duplicates","approve all suggestions"],
+    "scan": ["run a scan","scan my files","start scan","rescan","run scan","do a scan"],
+    "approve": ["approve all","approve duplicates","approve all duplicates",
+                "execute suggestions","archive duplicates","clean duplicates",
+                "approve all suggestions","move duplicates","delete duplicates",
+                "remove duplicates","clean up duplicates"],
     "quarantine": ["quarantine","quarantine large files","quarantine files"],
 }
 
@@ -46,11 +48,7 @@ def execute_action(action):
         if not SCAN_AVAILABLE:
             return "ACTION_RESULT: Scan backend not available."
         try:
-            logger=setup_logger()
-            conn=init_db(logger)
-            scan_files(conn,logger)
-            run_policy_engine(conn,logger)
-            conn.close()
+            run_full_cycle()
             return "ACTION_RESULT: Scan completed. Files re-indexed and new suggestions generated."
         except Exception as e:
             return f"ACTION_RESULT: Scan failed: {e}"
@@ -176,7 +174,6 @@ class ChatPanel(ctk.CTkFrame):
         self._scroll=ctk.CTkScrollableFrame(self, fg_color=SURFACE, corner_radius=20, border_width=0)
         self._scroll.pack(fill="both", expand=True, padx=36, pady=(0,16))
 
-        # ── Restore chat history from state ──────────────────
         if S.chat_messages:
             for role, text in S.chat_messages:
                 Bubble(self._scroll, text, role).pack(fill="x")
@@ -185,7 +182,6 @@ class ChatPanel(ctk.CTkFrame):
             S.chat_messages.append(("assistant", welcome))
             Bubble(self._scroll, welcome, "assistant").pack(fill="x")
 
-        # Hint strip
         hint=ctk.CTkFrame(self, fg_color=CARD, corner_radius=12, border_width=0)
         hint.pack(fill="x", padx=36, pady=(0,8))
         ctk.CTkLabel(hint,
@@ -214,7 +210,6 @@ class ChatPanel(ctk.CTkFrame):
         self._inp.delete(0,"end")
         self._sbtn.configure(state="disabled", text="…")
 
-        # save and show user bubble
         S.chat_messages.append(("user", msg))
         Bubble(self._scroll, msg, "user").pack(fill="x")
         self._scroll._parent_canvas.yview_moveto(1.0)
@@ -247,7 +242,6 @@ class ChatPanel(ctk.CTkFrame):
 
     def _reply(self, text, thinking):
         thinking.destroy()
-        # save and show LADO bubble
         S.chat_messages.append(("assistant", text))
         Bubble(self._scroll, text, "assistant").pack(fill="x")
         self._scroll._parent_canvas.yview_moveto(1.0)
