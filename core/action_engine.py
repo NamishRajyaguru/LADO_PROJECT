@@ -124,6 +124,12 @@ def execute_approved_suggestions(logger):
         if success:
             mark_executed(suggestion_id)
             log_action(file_path, action)
+            # Remove from files table so it doesn't get re-suggested
+            conn = get_connection()
+            cursor = conn.cursor()
+            cursor.execute("DELETE FROM files WHERE path = ?", (file_path,))
+            conn.commit()
+            conn.close()
             executed += 1
         else:
             failed += 1
