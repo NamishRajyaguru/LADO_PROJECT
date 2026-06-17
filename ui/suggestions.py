@@ -146,18 +146,31 @@ class SRow(ctk.CTkFrame):
                 font=ctk.CTkFont(family="Segoe UI", size=11, weight="bold"),
                 fg_color="transparent", border_color=ACCENTR, border_width=1,
                 text_color=ACCENTR, hover_color="#7F1D1D", corner_radius=10,
-                command=lambda: (update(sid,"rejected"), self._bust(), reload_cb())).pack(side="right")
+                command=lambda: self._reject(sid, reload_cb)).pack(side="right")
 
     def _approve(self, sid, reload_cb):
-        # 1. update DB status to approved
         update(sid, "approved")
-        # 2. execute the action physically RIGHT NOW
+
         if ACTION_ENGINE:
-            try:
-                execute_approved_suggestions(setup_logger())
-            except Exception as e:
-                print(f"[Action Engine] {e}")
-        # 3. bust cache and reload UI
+            threading.Thread(
+                target=lambda: self._run_engine_then_reload(reload_cb),
+                daemon=True
+            ).start()
+        else:
+            self._bust()
+            reload_cb()
+
+    def _run_engine_then_reload(self, reload_cb):
+        try:
+            execute_approved_suggestions(setup_logger())
+        except Exception as e:
+            print(f"[Action Engine] {e}")
+
+        self._bust()
+        self.after(0, reload_cb)
+
+    def _reject(self, sid, reload_cb):
+        update(sid, "rejected")
         self._bust()
         reload_cb()
 
