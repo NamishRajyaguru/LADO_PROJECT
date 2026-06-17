@@ -27,41 +27,142 @@ TEXT="#000000";MUTED="#8A8F98";DIM="#C4C5C8"
 ACCENT="#000000";ACCENTG="#16A34A"
 
 ACTION_KEYWORDS = {
-    "scan": ["run a scan","scan my files","start scan","rescan","run scan","do a scan"],
-    "approve": ["approve all","approve duplicates","approve all duplicates",
-                "execute suggestions","archive duplicates","clean duplicates",
-                "approve all suggestions","move duplicates","delete duplicates",
-                "remove duplicates","clean up duplicates"],
-    "quarantine": ["quarantine","quarantine large files","quarantine files"],
+    "scan": [
+        "run a scan", "scan my files", "start scan",
+        "rescan", "run scan", "do a scan"
+    ],
+    "approve_all": [
+        "approve all", "approve all duplicates", "approve all suggestions",
+        "execute suggestions", "clean duplicates", "archive duplicates"
+    ],
+    "archive_largest": [
+        "archive the largest file", "archive largest",
+        "move the largest file", "archive biggest file"
+    ],
+    "quarantine_duplicates": [
+        "quarantine duplicates", "quarantine all duplicates",
+        "move duplicates to quarantine", "quarantine it",
+        "quarantine them", "quarantine the duplicates",
+        "quarantine the file", "quarantine files",
+    ],
+    "show_largest": [
+        "what is the largest file", "which is the largest file",
+        "show largest files", "biggest files", "largest files"
+    ],
+    "show_duplicates": [
+        "show duplicates", "list duplicates", "how many duplicates",
+        "what are the duplicates"
+    ],
 }
 
 def detect_action(msg):
-    msg_lower=msg.lower().strip()
-    for action,phrases in ACTION_KEYWORDS.items():
+    msg_lower = msg.lower().strip()
+    for action, phrases in ACTION_KEYWORDS.items():
         for phrase in phrases:
             if phrase in msg_lower:
                 return action
     return None
 
 def execute_action(action):
-    if action=="scan":
+
+    if action == "scan":
         if not SCAN_AVAILABLE:
             return "ACTION_RESULT: Scan backend not available."
         try:
             run_full_cycle()
-            return "ACTION_RESULT: Scan completed. Files re-indexed and new suggestions generated."
+            return "ACTION_RESULT: Full scan completed. Files re-indexed and suggestions regenerated."
         except Exception as e:
             return f"ACTION_RESULT: Scan failed: {e}"
-    elif action=="approve":
+
+    elif action == "approve_all":
         if not ACTIONS_AVAILABLE:
             return "ACTION_RESULT: Action engine not available."
         try:
             execute_approved_suggestions(setup_logger())
-            return "ACTION_RESULT: All approved suggestions executed. Files moved/archived."
+            return "ACTION_RESULT: All approved suggestions executed. Files moved to archive or quarantine."
         except Exception as e:
-            return f"ACTION_RESULT: Action failed: {e}"
-    elif action=="quarantine":
-        return "ACTION_RESULT: Quarantine not yet implemented. Coming in Phase 5."
+            return f"ACTION_RESULT: Failed: {e}"
+
+    elif action == "archive_largest":
+        if not ACTIONS_AVAILABLE:
+            return "ACTION_RESULT: Action engine not available."
+        try:
+            import sqlite3
+            c = sqlite3.connect(DB_PATH).cursor()
+            c.execute("""
+                SELECT path, name, size_mb FROM files
+                WHERE extension NOT IN ('.exe','.dll','.sys','.iso','.msi')
+                ORDER BY size_mb DESC LIMIT 1
+            """)
+            row = c.fetchone()
+            if not row:
+                return "ACTION_RESULT: No suitable file found to archive."
+            path, name, size_mb = row
+            logger = setup_logger()
+            from core.action_engine import archive_file, log_action
+            from core.database import get_connection
+            success = archive_file(path, logger)
+            if success:
+                conn = get_connection()
+                cursor = conn.cursor()
+                cursor.execute("DELETE FROM files WHERE path = ?", (path,))
+                conn.commit()
+                conn.close()
+                log_action(path, "suggest_archive", approved_by="user_chat")
+                return f"ACTION_RESULT: Archived '{name}' ({size_mb} MB). File moved to LADO/archive/."
+            else:
+                return f"ACTION_RESULT: Failed to archive '{name}'. File may not exist."
+        except Exception as e:
+            return f"ACTION_RESULT: Error: {e}"
+
+    elif action == "quarantine_duplicates":
+        if not ACTIONS_AVAILABLE:
+            return "ACTION_RESULT: Action engine not available."
+        try:
+            import sqlite3
+            from core.action_engine import quarantine_file, log_action
+            from core.database import get_connection
+            c = sqlite3.connect(DB_PATH).cursor()
+            # Get all duplicate files over 10MB — keep one copy per hash
+            c.execute("""
+                SELECT path, name, size_mb, hash FROM files
+                WHERE hash IS NOT NULL AND hash != ''
+                AND size_mb > 10
+                ORDER BY hash, modified_time DESC
+            """)
+            rows = c.fetchall()
+            seen_hashes = set()
+            to_quarantine = []
+            for path, name, size_mb, hash_ in rows:
+                if hash_ in seen_hashes:
+                    to_quarantine.append((path, name, size_mb))
+                else:
+                    seen_hashes.add(hash_)
+            if not to_quarantine:
+                return "ACTION_RESULT: No duplicate files over 10MB found."
+            logger = setup_logger()
+            moved = 0
+            for path, name, size_mb in to_quarantine:
+                if quarantine_file(path, logger):
+                    conn = get_connection()
+                    cursor = conn.cursor()
+                    cursor.execute("DELETE FROM files WHERE path = ?", (path,))
+                    conn.commit()
+                    conn.close()
+                    log_action(path, "suggest_cleanup", approved_by="user_chat")
+                    moved += 1
+            total_mb = round(sum(s for _, _, s in to_quarantine[:moved]), 2)
+            return f"ACTION_RESULT: Quarantined {moved} duplicate files. Freed approximately {total_mb} MB."
+        except Exception as e:
+            return f"ACTION_RESULT: Error: {e}"
+
+    elif action == "show_largest":
+        # This is informational — no file action, just query DB
+        return None   # let LLM answer from db summary
+
+    elif action == "show_duplicates":
+        return None   # let LLM answer from db summary
+
     return "ACTION_RESULT: Unknown action."
 
 def get_logs():
@@ -227,17 +328,21 @@ class ChatPanel(ctk.CTkFrame):
         ).start()
 
     def _work(self, msg, action, thinking):
-        action_result=None
+        action_result = None
         if action:
-            action_result=execute_action(action)
-            friendly={
-                "scan": "Running a full scan…",
-                "approve": "Executing approved suggestions…",
-                "quarantine": "Quarantine not yet available.",
-            }.get(action, "Running action…")
-            self.after(0, lambda: ActionBubble(self._scroll, friendly).pack(fill="x"))
+            action_result = execute_action(action)
+            # Only show the action bubble if something actually happened
+            if action_result and "ACTION_RESULT" in action_result:
+                friendly = {
+                    "scan":                  "Running a full scan…",
+                    "approve_all":           "Executing approved suggestions…",
+                    "archive_largest":       "Archiving largest file…",
+                    "quarantine_duplicates": "Moving duplicate files to quarantine…",
+                }.get(action, "Running action…")
+                self.after(0, lambda: ActionBubble(
+                    self._scroll, friendly).pack(fill="x"))
 
-        r=query(msg, action_result)
+        r = query(msg, action_result)
         self.after(0, lambda: self._reply(r, thinking))
 
     def _reply(self, text, thinking):
