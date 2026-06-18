@@ -135,3 +135,48 @@ def execute_approved_suggestions(logger):
             failed += 1
 
     logger.info(f"Execution complete - executed: {executed}, failed: {failed}")
+
+def restore_file(file_path, logger):
+    """
+    Restores a file from quarantine or archive back to its original location.
+    Reads the original path from actions_log.
+    """
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute("""
+        SELECT file_path FROM actions_log
+        WHERE file_path = ?
+        ORDER BY timestamp DESC LIMIT 1
+    """, (file_path,))
+    row = cursor.fetchone()
+    conn.close()
+
+    if not row:
+        logger.warning(f"No action log found for: {file_path}")
+        return False
+
+    original_path = row[0]
+
+    # Find where the file currently is
+    filename = os.path.basename(original_path)
+    quarantine_path = os.path.join(QUARANTINE_DIR, filename)
+    archive_path = os.path.join(ARCHIVE_DIR, filename)
+
+    current_location = None
+    if os.path.exists(quarantine_path):
+        current_location = quarantine_path
+    elif os.path.exists(archive_path):
+        current_location = archive_path
+
+    if not current_location:
+        logger.warning(f"File not found in quarantine or archive: {filename}")
+        return False
+
+    try:
+        os.makedirs(os.path.dirname(original_path), exist_ok=True)
+        shutil.move(current_location, original_path)
+        logger.info(f"Restored: {current_location} -> {original_path}")
+        return True
+    except Exception as e:
+        logger.error(f"Failed to restore {filename}: {e}")
+        return False

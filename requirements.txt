@@ -1,2 +1,4 @@
 groq
+watchdog
+customtkinter
 pathlib
