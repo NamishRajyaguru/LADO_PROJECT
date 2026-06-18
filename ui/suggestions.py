@@ -16,6 +16,13 @@ try:
 except:
     ACTION_ENGINE = False
 
+# ── Watcher notify — so dashboard auto-refreshes after approve ────
+try:
+    from ui.watcher import _notify_all
+    NOTIFY_AVAILABLE = True
+except:
+    NOTIFY_AVAILABLE = False
+
 RISK_CLR={"low":ACCENTG,"medium":ACCENTY,"high":ACCENTR,"critical":"#ff3355"}
 TABS=["Pending","Approved","Rejected","All"]
 PAGE=20
@@ -51,15 +58,6 @@ def update(sid, st):
         c.cursor().execute("UPDATE suggestions SET status=? WHERE id=?",(st,sid))
         c.commit()
     except: pass
-
-def run_action_engine():
-    """Execute approved suggestions via backend action engine."""
-    if not ACTION_ENGINE: return
-    try:
-        logger=setup_logger()
-        execute_approved_suggestions(logger)
-    except Exception as e:
-        print(f"[Action Engine] Error: {e}")
 
 
 class SkeletonCard(ctk.CTkFrame):
@@ -168,6 +166,13 @@ class SRow(ctk.CTkFrame):
 
         self._bust()
         self.after(0, reload_cb)
+
+        # ── Notify dashboard to auto-refresh stats ─────────────
+        if NOTIFY_AVAILABLE:
+            try:
+                _notify_all()
+            except Exception as e:
+                print(f"[Notify] {e}")
 
     def _reject(self, sid, reload_cb):
         update(sid, "rejected")

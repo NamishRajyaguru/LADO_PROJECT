@@ -13,10 +13,11 @@ except ImportError:
     WATCHDOG_AVAILABLE = False
 
 try:
-    from config import SCAN_TARGETS, DB_PATH
+    from config import SCAN_TARGETS, DB_PATH, DATA_DIR
 except:
     SCAN_TARGETS = []
     DB_PATH = None
+    DATA_DIR = None
 
 try:
     from core.agent import run_full_cycle
@@ -49,10 +50,14 @@ class LADOEventHandler(FileSystemEventHandler):
         self._debounce_delay = 3.0  # wait 3s after last event before scanning
 
     def on_created(self, event):
+        if DATA_DIR and os.path.abspath(DATA_DIR).lower() in os.path.abspath(event.src_path).lower():
+            return
         if not event.is_directory:
             self._debounce()
 
     def on_modified(self, event):
+        if DATA_DIR and os.path.abspath(DATA_DIR).lower() in os.path.abspath(event.src_path).lower():
+            return
         if not event.is_directory:
             self._debounce()
 

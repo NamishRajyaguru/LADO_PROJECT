@@ -279,14 +279,15 @@ class ChatPanel(ctk.CTkFrame):
             for role, text in S.chat_messages:
                 Bubble(self._scroll, text, role).pack(fill="x")
         else:
-            welcome="Hey! I'm LADO. Ask me anything, or try commands like 'run a scan' or 'approve all duplicates'."
+            welcome="Hey! I'm LADO. Ask me anything, or try commands like 'run a scan' or 'archive the largest file'."
             S.chat_messages.append(("assistant", welcome))
             Bubble(self._scroll, welcome, "assistant").pack(fill="x")
 
+        # ── Updated hint strip with all current commands ──────
         hint=ctk.CTkFrame(self, fg_color=CARD, corner_radius=12, border_width=0)
         hint.pack(fill="x", padx=36, pady=(0,8))
         ctk.CTkLabel(hint,
-            text="Commands: 'run a scan'  ·  'approve all duplicates'  ·  'approve all suggestions'",
+            text="Commands:  'run a scan'  ·  'archive the largest file'  ·  'quarantine duplicates'  ·  'quarantine it'",
             font=ctk.CTkFont(family="Segoe UI",size=9),
             text_color=DIM).pack(padx=16, pady=8)
 
