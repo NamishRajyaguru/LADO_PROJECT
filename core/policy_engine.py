@@ -5,6 +5,7 @@ from config import (
 )
 from core.database import get_all_files, save_suggestion, get_connection
 from datetime import datetime
+from core.reinforcement import get_all_multipliers
 
 RULES = [
     {
@@ -86,7 +87,9 @@ def prepare_file(db_record):
         "is_duplicate":        bool(file_hash),
     }
 
-def evaluate_file(file_dict):
+def evaluate_file(file_dict, multipliers=None):
+    if multipliers is None:
+        multipliers = {}
     suggestions = []
     for rule in RULES:
         try:
@@ -113,12 +116,18 @@ def run_policy_engine(logger):
     conn.close()
 
     logger.info("Policy engine started")
+
+    # Load learned multipliers
+    multipliers = get_all_multipliers()
+    if multipliers:
+        logger.info(f"Loaded {len(multipliers)} learned confidence adjustments")
+
     all_files = get_all_files()
     all_suggestions = []
 
     for db_record in all_files:
         file_dict = prepare_file(db_record)
-        suggestions = evaluate_file(file_dict)
+        suggestions = evaluate_file(file_dict, multipliers)
         all_suggestions.extend(suggestions)
 
     # Batch insert all suggestions at once

@@ -50,6 +50,27 @@ def create_tables():
         )
     """)
 
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS rule_feedback (
+            id          INTEGER PRIMARY KEY AUTOINCREMENT,
+            rule_id     TEXT NOT NULL,
+            outcome     TEXT NOT NULL,
+            file_path   TEXT,
+            timestamp   TEXT
+        )
+    """)
+
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS rule_confidence (
+            rule_id     TEXT PRIMARY KEY,
+            base        REAL,
+            multiplier  REAL DEFAULT 1.0,
+            approvals   INTEGER DEFAULT 0,
+            rejections  INTEGER DEFAULT 0,
+            last_updated TEXT
+        )
+    """)
+
     conn.commit()
     conn.close()
 

@@ -181,6 +181,17 @@ def get_db_summary():
         c.execute("SELECT COUNT(DISTINCT hash) FROM files WHERE hash!='' AND hash IS NOT NULL"); uh=c.fetchone()[0]
         c.execute("SELECT COUNT(*) FROM files WHERE hash!='' AND hash IS NOT NULL"); hf=c.fetchone()[0]
         c.execute("SELECT extension,COUNT(*) cnt FROM files GROUP BY extension ORDER BY cnt DESC LIMIT 8")
+        try:
+            from core.reinforcement import get_feedback_summary
+            feedback = get_feedback_summary()
+            if feedback:
+                feedback_lines = "\n".join([
+                    f"  {r[0]}: {r[1]} approvals, {r[2]} rejections, multiplier={r[3]:.2f}"
+                    for r in feedback
+                ])
+                # append to the return string
+        except:
+            feedback_lines = ""
         ext=", ".join([f"{r[0]}({r[1]})" for r in c.fetchall()])
         c.execute("SELECT name,size_mb,path FROM files ORDER BY size_mb DESC LIMIT 5")
         big="\n".join([f"  - {r[0]} ({float(r[1] or 0):.1f} MB) at {r[2]}" for r in c.fetchall()])
