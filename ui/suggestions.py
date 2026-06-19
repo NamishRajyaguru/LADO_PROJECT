@@ -8,6 +8,12 @@ TEXT="#000000";MUTED="#8A8F98";DIM="#C4C5C8"
 ACCENT="#000000";ACCENTG="#16A34A";ACCENTR="#DC2626";ACCENTY="#D97706"
 SK1="#121212";SK2="#1C1C1E"
 
+try:
+    from core.reinforcement import record_feedback
+    REINFORCEMENT = True
+except:
+    REINFORCEMENT = False
+
 # ── Action engine ─────────────────────────────────────────────────
 try:
     from core.action_engine import execute_approved_suggestions
@@ -148,6 +154,18 @@ class SRow(ctk.CTkFrame):
 
     def _approve(self, sid, reload_cb):
         update(sid, "approved")
+        # Record feedback for reinforcement
+        if REINFORCEMENT:
+            try:
+                # Get the rule_id for this suggestion from DB
+                import sqlite3
+                c = sqlite3.connect(DB_PATH).cursor()
+                c.execute("SELECT rule_id, file_path FROM suggestions WHERE id=?", (sid,))
+                row = c.fetchone()
+                if row:
+                    record_feedback(row[0], "approved", row[1])
+            except Exception as e:
+                print(f"[Reinforcement] {e}")
 
         if ACTION_ENGINE:
             threading.Thread(
@@ -176,6 +194,17 @@ class SRow(ctk.CTkFrame):
 
     def _reject(self, sid, reload_cb):
         update(sid, "rejected")
+        # Record feedback for reinforcement
+        if REINFORCEMENT:
+            try:
+                import sqlite3
+                c = sqlite3.connect(DB_PATH).cursor()
+                c.execute("SELECT rule_id, file_path FROM suggestions WHERE id=?", (sid,))
+                row = c.fetchone()
+                if row:
+                    record_feedback(row[0], "rejected", row[1])
+            except Exception as e:
+                print(f"[Reinforcement] {e}")
         self._bust()
         reload_cb()
 
