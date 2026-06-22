@@ -111,7 +111,7 @@ def evaluate_file(file_dict, multipliers=None):
 def run_policy_engine(logger):
     # Clear previous suggestions
     conn = get_connection()
-    conn.execute("DELETE FROM suggestions")
+    conn.execute("DELETE FROM suggestions WHERE status = 'pending'")
     conn.commit()
     conn.close()
 
