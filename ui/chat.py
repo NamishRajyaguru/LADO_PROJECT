@@ -63,7 +63,7 @@ def detect_action(msg):
                 return action
     return None
 
-def execute_action(action):
+def execute_action(action, msg =""):
 
     if action == "scan":
         if not SCAN_AVAILABLE:
@@ -118,12 +118,35 @@ def execute_action(action):
     elif action == "quarantine_duplicates":
         if not ACTIONS_AVAILABLE:
             return "ACTION_RESULT: Action engine not available."
+
+        # If user said "it/that/the file" and we know which file they mean
+        if S.last_mentioned_file and any(w in msg.lower() for w in ["it", "that", "the file"]):
+            try:
+                from core.action_engine import quarantine_file, log_action
+                from core.database import get_connection
+                c = sqlite3.connect(DB_PATH).cursor()
+                c.execute("SELECT name, size_mb FROM files WHERE path=?", (S.last_mentioned_file,))
+                row = c.fetchone()
+                if row:
+                    logger = setup_logger()
+                    success = quarantine_file(S.last_mentioned_file, logger)
+                    if success:
+                        conn = get_connection()
+                        cursor = conn.cursor()
+                        cursor.execute("DELETE FROM files WHERE path=?", (S.last_mentioned_file,))
+                        conn.commit()
+                        conn.close()
+                        log_action(S.last_mentioned_file, "suggest_cleanup", approved_by="user_chat")
+                        S.last_mentioned_file = None
+                        return f"ACTION_RESULT: Quarantined '{row[0]}' ({row[1]:.1f} MB). Moved to quarantine."
+            except Exception as e:
+                return f"ACTION_RESULT: Error targeting file: {e}"
+
+        # No specific file in context — quarantine all duplicates over 10MB
         try:
-            import sqlite3
             from core.action_engine import quarantine_file, log_action
             from core.database import get_connection
             c = sqlite3.connect(DB_PATH).cursor()
-            # Get all duplicate files over 10MB — keep one copy per hash
             c.execute("""
                 SELECT path, name, size_mb, hash FROM files
                 WHERE hash IS NOT NULL AND hash != ''
@@ -184,6 +207,7 @@ def get_db_summary():
         try:
             from core.reinforcement import get_feedback_summary
             feedback = get_feedback_summary()
+            feedback_lines = ""
             if feedback:
                 feedback_lines = "\n".join([
                     f"  {r[0]}: {r[1]} approvals, {r[2]} rejections, multiplier={r[3]:.2f}"
@@ -195,7 +219,7 @@ def get_db_summary():
         ext=", ".join([f"{r[0]}({r[1]})" for r in c.fetchall()])
         c.execute("SELECT name,size_mb,path FROM files ORDER BY size_mb DESC LIMIT 5")
         big="\n".join([f"  - {r[0]} ({float(r[1] or 0):.1f} MB) at {r[2]}" for r in c.fetchall()])
-        return f"Total: {total} files | {size} GB | {hf-uh} dupes | {pending} pending\nTypes: {ext}\nLargest:\n{big}"
+        return f"Total: {total} files | {size} GB | {hf-uh} dupes | {pending} pending\nTypes: {ext}\nLargest:\n{big}\nRule Learning:\n{feedback_lines}"
     except Exception as e: return f"DB unavailable: {e}"
 
 def query(msg, action_result=None):
@@ -252,6 +276,16 @@ class ActionBubble(ctk.CTkFrame):
             text_color=ACCENTG).pack(padx=16, pady=8)
 
 
+def update_last_mentioned_file(response_text):
+    try:
+        c = sqlite3.connect(DB_PATH).cursor()
+        c.execute("SELECT name, path FROM files ORDER BY size_mb DESC LIMIT 20")
+        for name, path in c.fetchall():
+            if name in response_text:
+                S.last_mentioned_file = path
+                return
+    except:
+        pass
 class ChatPanel(ctk.CTkFrame):
     def __init__(self, parent, **kw):
         super().__init__(parent, fg_color="transparent", **kw)
@@ -342,7 +376,7 @@ class ChatPanel(ctk.CTkFrame):
     def _work(self, msg, action, thinking):
         action_result = None
         if action:
-            action_result = execute_action(action)
+            action_result = execute_action(action, msg)
             # Only show the action bubble if something actually happened
             if action_result and "ACTION_RESULT" in action_result:
                 friendly = {
@@ -359,6 +393,7 @@ class ChatPanel(ctk.CTkFrame):
 
     def _reply(self, text, thinking):
         thinking.destroy()
+        update_last_mentioned_file(text)
         S.chat_messages.append(("assistant", text))
         Bubble(self._scroll, text, "assistant").pack(fill="x")
         self._scroll._parent_canvas.yview_moveto(1.0)
