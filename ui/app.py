@@ -1,115 +1,154 @@
 import customtkinter as ctk
 import sys, os
+from PIL import Image
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+from ui.chat         import ChatPanel
 from ui.dashboard    import DashboardPanel
 from ui.suggestions  import SuggestionsPanel
 from ui.duplicates   import DuplicatesPanel
 from ui.file_browser import FileBrowserPanel
-from ui.chat         import ChatPanel
 from ui.logs         import LogsPanel
 from ui.watcher      import start_watcher, stop_watcher
+from ui.theme import *
 
-ctk.set_appearance_mode("light")
+ctk.set_appearance_mode("dark")
 ctk.set_default_color_theme("blue")
 
-SB_BG="#0F0F10";SB_TEXT="#FFFFFF";SB_MUTED="#8A8F98";SB_ACTIVE="#2C2D31"
-BG="#FFFFFF";CARD="#F7F7F8";CARD2="#F1F1F3"
-TEXT="#000000";MUTED="#8A8F98";DIM="#C4C5C8"
-
+# Chat is first — LADO is an agent, not a file manager
 NAV = [
-    ("Dashboard",   "○", DashboardPanel),
+    ("Agent Chat",  "◉", ChatPanel),
+    ("Overview",    "○", DashboardPanel),
     ("Files",       "◫", FileBrowserPanel),
     ("Suggestions", "◎", SuggestionsPanel),
     ("Duplicates",  "⊞", DuplicatesPanel),
-    ("Chat",        "◉", ChatPanel),
     ("Logs",        "≡", LogsPanel),
 ]
 
+
 class NavBtn(ctk.CTkButton):
     def __init__(self, parent, text, icon, command):
-        super().__init__(parent, text=f"  {icon}   {text}",
-            width=200, height=44, corner_radius=22,
-            font=ctk.CTkFont(family="Segoe UI", size=13, weight="bold"),
-            fg_color="transparent", text_color=SB_MUTED, hover_color=SB_ACTIVE,
-            anchor="w", command=command)
+        super().__init__(
+            parent,
+            text=f"  {icon}   {text}",
+            width=188, height=40,
+            corner_radius=10,
+            font=ctk.CTkFont(family=FONT_SANS, size=12, weight="bold"),
+            fg_color="transparent",
+            text_color=TEXT_DIM,
+            hover_color=SB_ACTIVE,
+            anchor="w",
+            border_width=0,
+            command=command,
+        )
 
     def activate(self):
-        self.configure(fg_color=SB_ACTIVE, text_color=SB_TEXT, border_width=0)
+        self.configure(
+            fg_color=SB_ACTIVE,
+            text_color=TEXT,
+            border_color=GLASS_BORDER2,
+            border_width=1,
+        )
 
     def deactivate(self):
-        self.configure(fg_color="transparent", text_color=SB_MUTED, border_width=0)
+        self.configure(
+            fg_color="transparent",
+            text_color=TEXT_DIM,
+            border_width=0,
+        )
 
 
 class LADOApp(ctk.CTk):
     def __init__(self):
         super().__init__()
         self.title("LADO")
-        self.geometry("1360x820")
-        self.minsize(1000, 640)
-        self.configure(fg_color=BG)
-        self._active_btn=None
+        self.geometry("1400x860")
+        self.minsize(1100, 660)
+        self.configure(fg_color=BG_DARK)
+        self._active_btn = None
         self._build()
-        # start real-time file watcher
         start_watcher()
         self.protocol("WM_DELETE_WINDOW", self._on_close)
+        # Windows taskbar fix
+        try:
+            import ctypes
+            ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID("LADO.App.1.0")
+        except:
+            pass
+        # Set icon
+        icon_path = os.path.join(
+            os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+            "assets", "lado.ico")
+        if os.path.exists(icon_path):
+            self.after(200, lambda: self.iconbitmap(default=icon_path))
 
     def _on_close(self):
         stop_watcher()
         self.destroy()
 
     def _build(self):
-        sb=ctk.CTkFrame(self, fg_color=SB_BG, width=240, corner_radius=0)
+        # ── Sidebar ──────────────────────────────────────────────
+        sb = ctk.CTkFrame(self, fg_color=SB_BG, width=220, corner_radius=0)
         sb.pack(side="left", fill="y")
         sb.pack_propagate(False)
 
-        inner=ctk.CTkFrame(sb, fg_color="transparent")
-        inner.pack(fill="both", expand=True, padx=20, pady=32)
+        inner = ctk.CTkFrame(sb, fg_color="transparent")
+        inner.pack(fill="both", expand=True, padx=14, pady=28)
 
-        logo_row=ctk.CTkFrame(inner, fg_color="transparent")
-        logo_row.pack(fill="x", padx=16, pady=(0,4))
-        ctk.CTkLabel(logo_row, text="●",
-            font=ctk.CTkFont(size=20), text_color=SB_TEXT).pack(side="left")
-        ctk.CTkLabel(logo_row, text="  LADO",
-            font=ctk.CTkFont(family="Segoe UI", size=22, weight="bold"),
-            text_color=SB_TEXT).pack(side="left")
+        # Logo image
+        logo_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "assets", "lado_logo.png")
+        if os.path.exists(logo_path):
+            logo_img = ctk.CTkImage(light_image=Image.open(logo_path),
+                                    dark_image=Image.open(logo_path),
+                                    size=(182, 56))
+            ctk.CTkLabel(inner, image=logo_img, text="").pack(anchor="w", padx=4, pady=(0, 4))
+        else:
+            ctk.CTkLabel(inner, text="L.A.D.O.",
+                font=ctk.CTkFont(family=FONT_SANS, size=18, weight="bold"),
+                text_color=TEXT).pack(anchor="w", padx=8)
 
-        ctk.CTkLabel(inner, text="Local AI Data Organizer",
-            font=ctk.CTkFont(family="Segoe UI", size=11),
-            text_color=SB_MUTED).pack(anchor="w", padx=20, pady=(0,0))
-
-        # Watcher status
+        # Watcher status pill
         from ui.watcher import WATCHDOG_AVAILABLE
-        watcher_color = "#16A34A" if WATCHDOG_AVAILABLE else "#D97706"
-        watcher_text = "● Watching files" if WATCHDOG_AVAILABLE else "● Install watchdog"
-        ctk.CTkLabel(inner, text=watcher_text,
-            font=ctk.CTkFont(family="Segoe UI", size=9),
-            text_color=watcher_color).pack(anchor="w", padx=20, pady=(4,0))
+        pill_bg = TEAL_DIM if WATCHDOG_AVAILABLE else AMBER_DIM
+        pill_color = TEAL if WATCHDOG_AVAILABLE else AMBER
+        pill_text = "● Agent active" if WATCHDOG_AVAILABLE else "● Install watchdog"
 
-        ctk.CTkLabel(inner, text="NAVIGATE",
-            font=ctk.CTkFont(family="Segoe UI", size=10, weight="bold"),
-            text_color=SB_MUTED).pack(anchor="w", padx=22, pady=(32,12))
+        pill = ctk.CTkFrame(inner, fg_color=pill_bg, corner_radius=20)
+        pill.pack(anchor="w", padx=6, pady=(12, 0))
+        ctk.CTkLabel(pill, text=pill_text,
+            font=ctk.CTkFont(family=FONT_SANS, size=9, weight="bold"),
+            text_color=pill_color).pack(padx=12, pady=5)
 
-        self._btns={}
-        for label,icon,cls in NAV:
-            b=NavBtn(inner, icon, label,
-                     lambda l=label, c=cls: self._switch(l, c))
-            b.pack(fill="x", padx=12, pady=2)
-            self._btns[label]=b
+        # Nav label
+        ctk.CTkLabel(inner, text="PANELS",
+            font=ctk.CTkFont(family=FONT_SANS, size=9, weight="bold"),
+            text_color=TEXT_DIM).pack(anchor="w", padx=10, pady=(24, 6))
 
-        ctk.CTkLabel(inner, text="v0.1  ·  Phase 1–3",
-            font=ctk.CTkFont(family="Segoe UI", size=9),
-            text_color=DIM).pack(side="bottom", pady=(0,16))
+        # Nav buttons
+        self._btns = {}
+        for label, icon, cls in NAV:
+            b = NavBtn(inner, label, icon,
+                       lambda l=label, c=cls: self._switch(l, c))
+            b.pack(fill="x", padx=4, pady=2)
+            self._btns[label] = b
 
-        self.content=ctk.CTkFrame(self, fg_color=BG, corner_radius=0)
+        # Version
+        ctk.CTkLabel(inner, text="v0.1  ·  Phase 1–5",
+            font=ctk.CTkFont(family=FONT_SANS, size=9),
+            text_color=TEXT_DIM).pack(side="bottom", pady=(0, 8))
+
+        # ── Content area ─────────────────────────────────────────
+        self.content = ctk.CTkFrame(self, fg_color=BG_DARK, corner_radius=0)
         self.content.pack(side="right", fill="both", expand=True)
-        self._switch("Dashboard", DashboardPanel)
+
+        # Start on Agent Chat
+        self._switch("Agent Chat", ChatPanel)
 
     def _switch(self, label, cls):
         if self._active_btn:
             self._active_btn.deactivate()
         self._btns[label].activate()
-        self._active_btn=self._btns[label]
+        self._active_btn = self._btns[label]
         for w in self.content.winfo_children():
             w.destroy()
         cls(self.content).pack(fill="both", expand=True)
