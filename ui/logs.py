@@ -4,10 +4,23 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 try: from config import LOG_DIR
 except: LOG_DIR = None
 
-BG="#FFFFFF";SURFACE="#F7F7F8";CARD="#F7F7F8";CARD2="#F1F1F3"
-BORDER="#E6E6E9";BORDER_HI="#D1D1D6"
-TEXT="#000000";MUTED="#8A8F98";DIM="#C4C5C8"
-ACCENT="#000000";ACCENTG="#000000";ACCENTR="#000000";ACCENTY="#000000"
+from ui.theme import *
+
+BG       = BG_DARK
+SURFACE  = GLASS_BG
+CARD     = GLASS_BG
+CARD2    = GLASS_BG2
+
+BORDER    = GLASS_BORDER
+BORDER_HI = GLASS_BORDER2
+
+MUTED = TEXT_MUTED
+DIM   = TEXT_DIM
+
+ACCENT  = PURPLE
+ACCENTG = TEAL
+ACCENTR = RED
+ACCENTY = AMBER
 
 _cache = None
 
@@ -47,10 +60,25 @@ class LogLine(ctk.CTkFrame):
         clr = LEVEL_CLR.get(lvl, MUTED)
 
         # level badge
-        ctk.CTkLabel(self, text=f" {lvl[:4]} ",
-            font=ctk.CTkFont(family="Segoe UI", size=10, weight="bold"),
-            text_color=BG, fg_color=clr, corner_radius=6,
-            width=48).pack(side="left", padx=(16,12), pady=6)
+        badge = ctk.CTkFrame(
+            self,
+            fg_color=GLASS_BG2,
+            border_color=clr,
+            border_width=1,
+            corner_radius=8
+        )
+        badge.pack(side="left", padx=(16,12), pady=6)
+
+        ctk.CTkLabel(
+            badge,
+            text=lvl,
+            font=ctk.CTkFont(
+                family=FONT_SANS,
+                size=10,
+                weight="bold"
+            ),
+            text_color=clr
+        ).pack(padx=10, pady=4)
 
         ctk.CTkLabel(self, text=line[:160],
             font=ctk.CTkFont(family="JetBrains Mono", size=11),
@@ -60,7 +88,7 @@ class LogLine(ctk.CTkFrame):
 
 class LogsPanel(ctk.CTkFrame):
     def __init__(self, parent, **kw):
-        super().__init__(parent, fg_color="transparent", **kw)
+        super().__init__(parent, fg_color=BG_DARK, **kw)
         self._selected_file = None
         self._build()
 

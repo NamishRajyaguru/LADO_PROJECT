@@ -64,7 +64,7 @@ def mark_executed(suggestion_id):
     cursor = conn.cursor()
     cursor.execute(
         "UPDATE suggestions SET status = ? WHERE id = ?",
-        ("executed", suggestion_id)
+        ("approved", suggestion_id)
     )
     conn.commit()
     conn.close()
