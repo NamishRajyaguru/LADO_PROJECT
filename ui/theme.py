@@ -1,28 +1,43 @@
-# LADO Design Tokens — Minimal Monochrome
-SB_BG         = "#0F0F10"
-SB_TEXT       = "#FFFFFF"
-SB_MUTED      = "#8A8F98"
-SB_ACTIVE     = "#2C2D31"
+# LADO Design Tokens — Glassmorphism Dark Agent
+# True transparency isn't supported in tkinter — using solid approximations
 
-BG            = "#FFFFFF"
-SURFACE       = "#F7F7F8"
-CARD          = "#F7F7F8"
-CARD2         = "#F1F1F3"
+BG_DARK       = "#0f0c29"
+BG_MID        = "#1a1640"
+BG_LIGHT      = "#24243e"
 
-BORDER        = "#E6E6E9"
-BORDER_HI     = "#D1D1D6"
+# Glass surfaces (solid dark approximations)
+GLASS_BG      = "#1e1b3a"
+GLASS_BG2     = "#252245"
+GLASS_BORDER  = "#3d3868"
+GLASS_BORDER2 = "#5a549a"
 
-TEXT          = "#000000"
-MUTED         = "#8A8F98"
-DIM           = "#C4C5C8"
+# Text
+TEXT          = "#FFFFFF"
+TEXT_MUTED    = "#a09cc0"
+TEXT_DIM      = "#6b6890"
 
-ACCENT        = "#000000" 
-ACCENT_BLUE   = "#000000"
-ACCENT_GREEN  = "#000000"
-ACCENT_AMBER  = "#000000"
-ACCENT_RED    = "#000000"
-ACCENT_PURPLE = "#000000"
+# Accent colors — solid versions only
+PURPLE        = "#7c4dff"
+PURPLE_DIM    = "#2d1f66"
+PURPLE_BORDER = "#4a2daa"
+TEAL          = "#00e5a0"
+TEAL_DIM      = "#0a3d2e"
+TEAL_BORDER   = "#0a5a42"
+PINK          = "#ff4d8d"
+PINK_DIM      = "#4d1a2e"
+AMBER         = "#ffb74d"
+AMBER_DIM     = "#4d3310"
+RED           = "#ff4d4d"
+RED_DIM       = "#4d1010"
 
-FONT_MONO  = "JetBrains Mono"
-FONT_SANS  = "Segoe UI"
-FONT_SIZES = {"xs": 10, "sm": 11, "md": 12, "lg": 14, "xl": 18, "xxl": 24}
+# Sidebar
+SB_BG         = "#080614"
+SB_ACTIVE     = "#1e1b3a"
+SB_ACTIVE_BORDER = "#3d3868"
+
+# Skeleton shimmer
+SK1           = "#1a1730"
+SK2           = "#252245"
+
+FONT_SANS     = "Segoe UI"
+FONT_MONO     = "Courier New"
