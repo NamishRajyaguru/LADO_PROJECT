@@ -1,6 +1,21 @@
 import customtkinter as ctk
 import sys, os
 from PIL import Image
+
+try:
+    import main
+except ImportError:
+    pass
+
+def resource_path(relative_path):
+    """ Get absolute path to resource, works for dev and for PyInstaller """
+    try:
+        # PyInstaller creates a temp folder and stores path in _MEIPASS
+        base_path = sys._MEIPASS
+    except Exception:
+        base_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    return os.path.join(base_path, relative_path)
+
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from ui.chat         import ChatPanel
@@ -79,9 +94,7 @@ class LADOApp(ctk.CTk):
         except:
             pass
         # Set icon
-        icon_path = os.path.join(
-            os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-            "assets", "lado.ico")
+        icon_path = resource_path(os.path.join("assets", "lado.ico"))
         if os.path.exists(icon_path):
             self.after(200, lambda: self.iconbitmap(default=icon_path))
 
@@ -99,7 +112,7 @@ class LADOApp(ctk.CTk):
         inner.pack(fill="both", expand=True, padx=14, pady=28)
 
         # Logo image
-        logo_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "assets", "lado_logo.png")
+        logo_path = resource_path(os.path.join("assets", "lado_logo.png"))
         if os.path.exists(logo_path):
             logo_img = ctk.CTkImage(light_image=Image.open(logo_path),
                                     dark_image=Image.open(logo_path),
@@ -178,4 +191,13 @@ class LADOApp(ctk.CTk):
 
 
 if __name__ == "__main__":
-    LADOApp().mainloop()
+    import sys
+    if len(sys.argv) > 1 and sys.argv[1] == "--run-scan":
+        if hasattr(sys.stdout, 'reconfigure'):
+            sys.stdout.reconfigure(encoding='utf-8')
+        if hasattr(sys.stderr, 'reconfigure'):
+            sys.stderr.reconfigure(encoding='utf-8')
+        import main
+        main.run_lado()
+    else:
+        LADOApp().mainloop()

@@ -46,28 +46,30 @@ def run_lado():
     print("──────────────────────────────────────────────────\n")
 
     # Simple interactive loop — user can ask questions
-    while True:
-        question = input("Ask LADO anything (or press Enter to exit): ").strip()
-        if not question:
-            break
+    try:
+        while True:
+            question = input("Ask LADO anything (or press Enter to exit): ").strip()
+            if not question:
+                break
 
-        # Read last 30 lines of today's log as context
-        import os
-        from config import LOG_DIR
-        from datetime import datetime
-        log_file = os.path.join(LOG_DIR, datetime.now().strftime("%Y-%m-%d") + ".log")
-        try:
-            with open(log_file, "r") as f:
-                lines = f.readlines()
-                recent_logs = "".join(lines[-30:])
-        except:
-            recent_logs = "No logs available"
+            # Read last 30 lines of today's log as context
+            import os
+            from config import LOG_DIR
+            from datetime import datetime
+            log_file = os.path.join(LOG_DIR, datetime.now().strftime("%Y-%m-%d") + ".log")
+            try:
+                with open(log_file, "r") as f:
+                    lines = f.readlines()
+                    recent_logs = "".join(lines[-30:])
+            except:
+                recent_logs = "No logs available"
 
-        print("\nLADO:", answer_user_question(question, recent_logs))
-        print()
+            print("\nLADO:", answer_user_question(question, recent_logs))
+            print()
+    except (EOFError, KeyboardInterrupt):
+        pass
 
 
 
 if __name__ == "__main__":
     run_lado()
-

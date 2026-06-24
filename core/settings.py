@@ -5,7 +5,8 @@ from config import DATA_DIR
 SETTINGS_PATH = os.path.join(DATA_DIR, "settings.json")
 
 DEFAULT_SETTINGS = {
-    "theme": "dark"
+    "theme": "dark",
+    "last_scan_time": ""
 }
 
 def load_settings():
