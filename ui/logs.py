@@ -131,8 +131,8 @@ class LogsPanel(ctk.CTkFrame):
                 width=110, height=36,
                 font=ctk.CTkFont(family="Segoe UI", size=11, weight="bold"),
                 fg_color=ACCENT if is_today else "transparent",
-                text_color="#FFFFFF" if is_today else MUTED,
-                hover_color="#2C2D31", corner_radius=10,
+                text_color=TEXT if is_today else MUTED,
+                hover_color=GLASS_HOVER, corner_radius=10,
                 command=lambda x=f: self._select(x))
             btn.pack(side="left", padx=6, pady=6)
             self._file_btns[f] = btn

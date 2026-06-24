@@ -91,7 +91,7 @@ class DashboardPanel(ctk.CTkFrame):
         self._scan_btn = ctk.CTkButton(hdr,
             text="⟳  Run Scan", width=140, height=38,
             font=ctk.CTkFont(family=FONT_SANS, size=12, weight="bold"),
-            fg_color=PURPLE, hover_color="#5c2dff",
+            fg_color=PURPLE, hover_color=PURPLE_HOVER,
             text_color=TEXT, corner_radius=12,
             command=self._toggle_scan)
         self._scan_btn.pack(side="right")
@@ -224,7 +224,7 @@ class DashboardPanel(ctk.CTkFrame):
         threading.Thread(target=self._scan_worker, daemon=True).start()
 
     def _set_scanning_ui(self):
-        self._scan_btn.configure(text="◼  Stop", fg_color=RED, hover_color="#cc2200")
+        self._scan_btn.configure(text="◼  Stop", fg_color=RED, hover_color=RED_HOVER)
         self._status_dot.configure(fg_color=AMBER)
         self._status_lbl.configure(text="running", text_color=AMBER)
         self._pill_lbl.configure(text="● Scanning…", text_color=AMBER)
@@ -289,7 +289,7 @@ class DashboardPanel(ctk.CTkFrame):
     def _reset_btn(self):
         if self.winfo_exists():
             self._scan_btn.configure(text="⟳  Run Scan",
-                fg_color=PURPLE, hover_color="#5c2dff")
+                fg_color=PURPLE, hover_color=PURPLE_HOVER)
 
     def _bg_stats_after_scan(self):
         time.sleep(0.5)

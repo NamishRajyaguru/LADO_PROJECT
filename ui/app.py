@@ -11,8 +11,8 @@ from ui.file_browser import FileBrowserPanel
 from ui.logs         import LogsPanel
 from ui.watcher      import start_watcher, stop_watcher
 from ui.theme import *
+from core.settings   import load_settings, save_settings
 
-ctk.set_appearance_mode("dark")
 ctk.set_default_color_theme("blue")
 
 # Chat is first — LADO is an agent, not a file manager
@@ -61,6 +61,9 @@ class NavBtn(ctk.CTkButton):
 class LADOApp(ctk.CTk):
     def __init__(self):
         super().__init__()
+        self.settings = load_settings()
+        ctk.set_appearance_mode(self.settings.get("theme", "dark"))
+        
         self.title("LADO")
         self.geometry("1400x860")
         self.minsize(1100, 660)
@@ -137,6 +140,16 @@ class LADOApp(ctk.CTk):
             font=ctk.CTkFont(family=FONT_SANS, size=9),
             text_color=TEXT_DIM).pack(side="bottom", pady=(0, 8))
 
+        # Theme Toggle
+        theme_val = self.settings.get("theme", "dark")
+        self.theme_btn = ctk.CTkButton(inner, 
+            text="☀️ Light Mode" if theme_val == "dark" else "🌙 Dark Mode",
+            width=188, height=32, corner_radius=8,
+            font=ctk.CTkFont(family=FONT_SANS, size=11, weight="bold"),
+            fg_color="transparent", hover_color=SB_ACTIVE, text_color=TEXT_DIM,
+            command=self._toggle_theme)
+        self.theme_btn.pack(side="bottom", pady=(0, 16))
+
         # ── Content area ─────────────────────────────────────────
         self.content = ctk.CTkFrame(self, fg_color=BG_DARK, corner_radius=0)
         self.content.pack(side="right", fill="both", expand=True)
@@ -152,6 +165,16 @@ class LADOApp(ctk.CTk):
         for w in self.content.winfo_children():
             w.destroy()
         cls(self.content).pack(fill="both", expand=True)
+
+    def _toggle_theme(self):
+        current = self.settings.get("theme", "dark")
+        new_theme = "light" if current == "dark" else "dark"
+        
+        self.settings["theme"] = new_theme
+        save_settings(self.settings)
+        
+        ctk.set_appearance_mode(new_theme)
+        self.theme_btn.configure(text="☀️ Light Mode" if new_theme == "dark" else "🌙 Dark Mode")
 
 
 if __name__ == "__main__":

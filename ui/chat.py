@@ -465,7 +465,7 @@ class ChatPanel(ctk.CTkFrame):
             width=80, height=36,
             font=ctk.CTkFont(family=FONT_SANS, size=12, weight="bold"),
             fg_color=PURPLE,
-            hover_color="#5c2dff",
+            hover_color=PURPLE_HOVER,
             text_color=TEXT,
             corner_radius=10,
             command=self._send,
