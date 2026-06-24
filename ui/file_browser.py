@@ -121,7 +121,7 @@ class FileBrowserPanel(ctk.CTkFrame):
 
         ctk.CTkButton(fb, text="Search", width=90, height=36,
             font=ctk.CTkFont(family=FONT_SANS, size=12, weight="bold"),
-            fg_color=PURPLE, hover_color="#5c2dff",
+            fg_color=PURPLE, hover_color=PURPLE_HOVER,
             text_color=TEXT, corner_radius=10,
             command=self._apply).pack(side="left")
 
