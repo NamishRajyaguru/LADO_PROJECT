@@ -14,3 +14,7 @@ __pycache__/
 
 # API keys safety net
 config.py
+
+# PyInstaller build artifacts
+build/
+dist/

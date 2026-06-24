@@ -138,7 +138,7 @@ class DashboardPanel(ctk.CTkFrame):
             font=ctk.CTkFont(family=FONT_SANS, size=10, weight="bold"),
             text_color=TEXT_DIM).pack(anchor="w")
         self._scan_lbl = ctk.CTkLabel(lft,
-            text=S.last_scan_time if S.last_scan_time else "—",
+            text=self._format_relative_time(S.last_scan_time) if S.last_scan_time else "—",
             font=ctk.CTkFont(family=FONT_SANS, size=17, weight="bold"),
             text_color=TEXT)
         self._scan_lbl.pack(anchor="w", pady=(4, 0))
@@ -189,7 +189,7 @@ class DashboardPanel(ctk.CTkFrame):
         else:
             self._console_write("Ready. Press 'Run Scan' to start.\n")
         if S.last_scan_time:
-            self._scan_lbl.configure(text=S.last_scan_time)
+            self._scan_lbl.configure(text=self._format_relative_time(S.last_scan_time))
             self._pill_lbl.configure(text="● Up to date", text_color=TEAL)
         threading.Thread(target=self._bg_stats, daemon=True).start()
         if S.scan_active:
@@ -246,11 +246,18 @@ class DashboardPanel(ctk.CTkFrame):
 
     def _scan_worker(self):
         try:
-            main_py = os.path.join(
-                os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-                "main.py")
+            import sys
+            import os
+            if getattr(sys, 'frozen', False):
+                cmd = [sys.executable, "--run-scan"]
+            else:
+                main_py = os.path.join(
+                    os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                    "main.py")
+                cmd = [sys.executable, main_py]
+
             S.scan_proc = subprocess.Popen(
-                [sys.executable, main_py],
+                cmd,
                 stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
                 text=True, bufsize=1,
                 env={**os.environ, "PYTHONIOENCODING": "utf-8"})
@@ -295,11 +302,31 @@ class DashboardPanel(ctk.CTkFrame):
         time.sleep(0.5)
         s = fetch()
         S.last_scan_time = datetime.now().strftime("%Y-%m-%d %H:%M")
+        from core.settings import load_settings, save_settings
+        settings = load_settings()
+        settings["last_scan_time"] = S.last_scan_time
+        save_settings(settings)
         self.after(0, lambda: self._apply_stats(s, S.last_scan_time))
 
     def _bg_stats(self):
         s = fetch()
         self.after(0, lambda: self._apply_stats(s, None))
+
+    def _format_relative_time(self, dt_str):
+        if not dt_str: return "—"
+        try:
+            dt = datetime.strptime(dt_str, "%Y-%m-%d %H:%M")
+            diff = datetime.now() - dt
+            if diff.days == 0:
+                if diff.seconds < 60: return "Just now"
+                if diff.seconds < 3600: return f"{diff.seconds // 60}m ago"
+                hrs = diff.seconds // 3600
+                mins = (diff.seconds % 3600) // 60
+                return f"{hrs}h {mins}m ago" if mins > 0 else f"{hrs}h ago"
+            elif diff.days == 1: return "Yesterday"
+            else: return f"{diff.days} days ago"
+        except:
+            return dt_str
 
     def _apply_stats(self, s, scan_time=None):
         if not self.winfo_exists(): return
@@ -308,7 +335,7 @@ class DashboardPanel(ctk.CTkFrame):
         self._cards["DUPLICATES"].update(s["dupes"])
         self._cards["PENDING"].update(s["pending"])
         if scan_time:
-            self._scan_lbl.configure(text=scan_time)
+            self._scan_lbl.configure(text=self._format_relative_time(scan_time))
             self._pill_lbl.configure(text="● Up to date", text_color=TEAL)
             msg = f" Done — {s['files']} files, {s['dupes']} dupes, {s['pending']} pending.\n"
             S.scan_log.append(msg)

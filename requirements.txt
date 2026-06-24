@@ -1,4 +1,5 @@
 groq
 watchdog
 customtkinter
-pathlib
+pillow
+pyinstaller
