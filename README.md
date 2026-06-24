@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="assets/lado_256.png" alt="LADO Logo" width="150"/>
+  <img src="assets/lado_256-removebg-preview.png" alt="LADO Logo" width="150"/>
   <h1>LADO</h1>
   <p><strong>Local Autonomous Digital Operator</strong></p>
   <p>An agentic desktop assistant for intelligent file organization, real-time monitoring, and natural language file management.</p>
